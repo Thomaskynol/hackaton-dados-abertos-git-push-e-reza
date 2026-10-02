@@ -12,6 +12,7 @@
     "Helvetica Neue", Arial, sans-serif;
   --font-display: var(--font-sans);
 
+  /* Tema Normal / Claro */
   --c-canvas: 250 246 240;   /* off-white quente (terra clara) */
   --c-surface: 255 255 255;  /* cartões */
   --c-line: 234 223 211;     /* bordas suaves */
@@ -26,17 +27,53 @@
   --c-atencao: 232 163 61;    /* âmbar */
   --c-risco: 179 58 43;       /* vermelho-tijolo */
   --c-pendente: 139 128 116;  /* cinza-terra (sem dado) */
+
+  /* Mapa SVG Claro */
+  --c-mapa-bg: linear-gradient(180deg, #F6EFE3 0%, #EFE3CE 55%, #E7D6B8 100%);
+  --c-mapa-uf: #FDF9F1;
+  --c-mapa-uf-stroke: #C9B591;
+  --c-mapa-mun: #FEFCF8;
+  --c-mapa-mun-stroke: #B5986B;
 }
 
-/* Modo Campo: alto contraste para luz solar forte */
-.modo-campo {
-  --c-canvas: 255 255 255;
-  --c-surface: 255 255 255;
-  --c-line: 180 168 155;
-  --c-ink: 20 16 12;
-  --c-muted: 70 62 54;
-  --c-terra: 168 60 32;
-  --c-terra-ink: 110 36 18;
+/* Modo Dark: experiência escura moderna, contrastada e confortável */
+.dark {
+  --c-canvas: 16 17 20;      /* fundo escuro sofisticado (#101114) */
+  --c-surface: 25 28 34;     /* superfícies elevadas (#191C22) */
+  --c-line: 42 46 56;        /* bordas suaves (#2A2E38) */
+  --c-ink: 243 244 246;      /* texto principal níveo (#F3F4F6) */
+  --c-muted: 156 163 175;    /* texto secundário (#9CA3AF) */
+
+  --c-terra: 224 102 70;     /* terracota vibrante (#E06646) */
+  --c-terra-soft: 46 32 28;  /* acento suave escuro (#2E201C) */
+  --c-terra-ink: 251 146 120;/* terracota iluminado para leitura (#FB9278) */
+
+  --c-favoravel: 140 170 98;  /* verde oliva vivo */
+  --c-atencao: 245 180 80;    /* âmbar dourado */
+  --c-risco: 239 88 74;       /* vermelho tijolo luminoso */
+  --c-pendente: 150 156 168;  /* cinza neutro */
+
+  /* Mapa SVG Escuro */
+  --c-mapa-bg: linear-gradient(180deg, #14161B 0%, #1A1D24 55%, #131418 100%);
+  --c-mapa-uf: #232731;
+  --c-mapa-uf-stroke: #3D4454;
+  --c-mapa-mun: #20242D;
+  --c-mapa-mun-stroke: #363C4A;
+}
+
+/* Sombras refinadas no Dark Mode */
+.dark .shadow-soft {
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.35);
+}
+.dark .shadow-card {
+  box-shadow: 0 6px 22px rgb(0 0 0 / 0.55);
+}
+.dark .shadow-lift {
+  box-shadow: 0 14px 34px rgb(0 0 0 / 0.7);
+}
+.dark .card-hover:hover {
+  box-shadow: 0 8px 26px rgb(0 0 0 / 0.6);
+  border-color: rgb(var(--c-terra) / 0.5);
 }
 
 * {

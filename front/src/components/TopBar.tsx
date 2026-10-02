@@ -21,19 +21,21 @@ const ABAS = [
 export function TopBar({ titulo }: { titulo?: string }) {
   const pathname = usePathname();
   const { perfil, carregado } = usePerfil();
-  const [campo, setCampo] = useState(false);
+  const [dark, setDark] = useState(false);
 
   useEffect(() => {
-    const salvo = localStorage.getItem("agropilot:modo-campo") === "1";
-    setCampo(salvo);
-    document.documentElement.classList.toggle("modo-campo", salvo);
+    const salvo = localStorage.getItem("agropilot:tema");
+    const prefereDark = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const isDark = salvo ? salvo === "dark" : prefereDark;
+    setDark(isDark);
+    document.documentElement.classList.toggle("dark", isDark);
   }, []);
 
-  function alternar() {
-    const novo = !campo;
-    setCampo(novo);
-    document.documentElement.classList.toggle("modo-campo", novo);
-    localStorage.setItem("agropilot:modo-campo", novo ? "1" : "0");
+  function alternarTema() {
+    const novo = !dark;
+    setDark(novo);
+    document.documentElement.classList.toggle("dark", novo);
+    localStorage.setItem("agropilot:tema", novo ? "dark" : "light");
   }
 
   const pn = carregado && perfil.nome ? primeiroNome(perfil.nome) : null;
@@ -82,7 +84,7 @@ export function TopBar({ titulo }: { titulo?: string }) {
         })}
       </nav>
 
-      {/* Produtor Info + Modo Campo */}
+      {/* Produtor Info + Modo Dark Toggle */}
       <div className="flex items-center gap-2.5">
         {pn ? (
           <div className="hidden lg:flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1.5 shadow-soft">
@@ -100,20 +102,20 @@ export function TopBar({ titulo }: { titulo?: string }) {
         ) : null}
 
         <button
-          onClick={alternar}
-          aria-pressed={campo}
-          aria-label="Alternar Modo Campo (alto contraste para o sol)"
+          onClick={alternarTema}
+          aria-pressed={dark}
+          aria-label={dark ? "Alternar para modo normal (claro)" : "Alternar para modo dark (escuro)"}
           className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-[0.82rem] font-bold text-muted transition hover:border-terra hover:text-ink shadow-soft active:scale-95"
         >
-          {campo ? (
+          {dark ? (
             <>
-              <Moon size={16} className="text-terra-ink" />
-              <span className="hidden sm:inline">Normal</span>
+              <Sun size={16} className="text-amber-400" />
+              <span className="hidden sm:inline">Modo Normal</span>
             </>
           ) : (
             <>
-              <Sun size={16} className="text-amber-500" />
-              <span className="hidden sm:inline">Modo Sol</span>
+              <Moon size={16} className="text-terra-ink" />
+              <span className="hidden sm:inline">Modo Dark</span>
             </>
           )}
         </button>

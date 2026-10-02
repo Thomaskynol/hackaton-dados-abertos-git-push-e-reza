@@ -6,6 +6,7 @@ import type { Config } from "tailwindcss";
  * Tudo via CSS vars em globals.css para permitir Modo Campo (alto contraste).
  */
 const config: Config = {
+  darkMode: "class",
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",

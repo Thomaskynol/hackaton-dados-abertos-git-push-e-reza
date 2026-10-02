@@ -169,7 +169,7 @@ const MunicipioG = memo(function MunicipioG({
       ? "rgb(var(--c-terra) / 0.45)"
       : destaque
         ? "rgb(var(--c-terra-soft))"
-        : "#FEFCF8";
+        : "var(--c-mapa-mun, #FEFCF8)";
   return (
     <path
       d={d}
@@ -181,7 +181,7 @@ const MunicipioG = memo(function MunicipioG({
       className="cursor-pointer outline-none transition-[fill] duration-100"
       style={{
         fill,
-        stroke: ativo || emHover ? "rgb(var(--c-terra-ink))" : "#B5986B",
+        stroke: ativo || emHover ? "rgb(var(--c-terra-ink))" : "var(--c-mapa-mun-stroke, #B5986B)",
         strokeWidth: ativo ? 1.6 : emHover ? 1.1 : 0.55,
         strokeLinejoin: "round",
       }}
@@ -533,7 +533,7 @@ export function MapaBrasil({ selecionada, aoSelecionar, municipioIbge, aoSelecio
         role="group"
         aria-labelledby={tituloId}
         className="block w-full touch-none select-none"
-        style={{ aspectRatio: `${vb[2]} / ${vb[3]}`, background: "linear-gradient(180deg, #F6EFE3 0%, #EFE3CE 55%, #E7D6B8 100%)" }}
+        style={{ aspectRatio: `${vb[2]} / ${vb[3]}`, background: "var(--c-mapa-bg, linear-gradient(180deg, #F6EFE3 0%, #EFE3CE 55%, #E7D6B8 100%))" }}
         onPointerDown={(e) => {
           // NÃO captura aqui: capturar no pointerdown redireciona o click
           // para o <svg> e o toque deixa de selecionar estado/município.
@@ -743,9 +743,9 @@ export function MapaBrasil({ selecionada, aoSelecionar, municipioIbge, aoSelecio
                   className="cursor-pointer outline-none transition-all duration-200"
                   filter={ativa ? "url(#sombra-uf)" : undefined}
                   style={{
-                    fill: ativa ? "rgb(var(--c-terra))" : "#FDF9F1",
+                    fill: ativa ? "rgb(var(--c-terra))" : "var(--c-mapa-uf, #FDF9F1)",
                     fillOpacity: ativa ? 1 : 0.92,
-                    stroke: ativa ? "rgb(var(--c-terra-ink))" : "#C9B591",
+                    stroke: ativa ? "rgb(var(--c-terra-ink))" : "var(--c-mapa-uf-stroke, #C9B591)",
                     strokeWidth: ativa ? 2.4 : 1.1,
                     strokeLinejoin: "round",
                   }}
@@ -753,7 +753,7 @@ export function MapaBrasil({ selecionada, aoSelecionar, municipioIbge, aoSelecio
                     if (!ativa) (e.currentTarget as SVGPathElement).style.fill = "rgb(var(--c-terra-soft))";
                   }}
                   onMouseLeave={(e) => {
-                    if (!ativa) (e.currentTarget as SVGPathElement).style.fill = "#FDF9F1";
+                    if (!ativa) (e.currentTarget as SVGPathElement).style.fill = "var(--c-mapa-uf, #FDF9F1)";
                   }}
                 >
                   <title>{`${info.nome} — toque para ver municípios`}</title>
