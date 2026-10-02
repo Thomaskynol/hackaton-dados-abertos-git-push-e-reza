@@ -6,3 +6,6 @@ venv/
 node_modules/
 dist/
 .DS_Store
+
+# bases de dados locais — pesadas, não commitar
+base de dados/
