@@ -29,3 +29,20 @@ A API estará disponível em:
 ```bash
 pytest tests/test_contrato.py -v
 ```
+
+## 🪟 Executar sem Docker (Windows)
+
+Um script só instala o que falta (MongoDB, `mongosh`, `mongorestore`, venv, `npm install`), popula o banco e sobe API + front:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\agropilot.ps1
+```
+
+- Idempotente: pode rodar de novo sem quebrar nada. Requer `winget` disponível e, para a primeira instalação, PowerShell como Administrador.
+- O dump `seed\agropilot.gz` (release privada) é baixado via `gh release download`; se o `gh` faltar, o script imprime o link para download manual. O `mongorestore --drop` só roda se o banco `agropilot` estiver vazio.
+- URLs: **front** http://localhost:3000 · **Swagger** http://localhost:8000/docs · **Health** http://localhost:8000/api/health
+- Logs em `%TEMP%\agropilot-*.log` e PIDs em `%TEMP%\agropilot-*.pid`.
+- Parâmetros: `-Setup` (só instala e popula), `-Seed` (força o seed), `-Status` (o que está de pé), `-Stop` (derruba API e front).
+- Sem executar o script: `uvicorn app.main:app --reload --port 8000` a partir de `back\`, com o serviço Windows `MongoDB` rodando.
+
+O caminho com Docker continua disponível como alternativa (`docker compose up`), conforme o `docker-compose.yml`.
