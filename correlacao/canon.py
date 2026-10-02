@@ -30,13 +30,13 @@ def sem_acento(s: str) -> str:
                    if unicodedata.category(c) != "Mn")
 
 
-def cultura_canonica(nome: str) -> str:
+def cultura_canonica(nome: str | None) -> str:
     """'Milho 1a Safra' -> 'milho'. Primeiro token, minusculo, sem acento."""
     base = sem_acento(nome or "").lower().strip().split()
     return base[0].replace("-", "_") if base else ""
 
 
-def tox_numerica(rotulo: str):
+def tox_numerica(rotulo: str | None):
     """Rotulo toxicidade -> 1..5 ou None (nao-numerico nao passa em $gte)."""
     import re
     if not rotulo:
@@ -62,7 +62,7 @@ def ibge7(codigo) -> str:
     return s
 
 
-def e_sinistro(evento: str, valor) -> bool:
+def e_sinistro(evento: str | None, valor) -> bool:
     """Regra medida Sec. 5.2: evento preenchido E indenizacao > 0."""
     if (evento or "").strip() in ("", "-"):
         return False
