@@ -261,6 +261,45 @@ document.addEventListener("DOMContentLoaded", () => {
       if (window.AgroAPI && window.AgroAPI.isBackendOnline()) {
         const session = window.AgroAPI.loadSession();
         const produtorId = session?.id || "demo-user";
+        // Streaming: bolha AI vazia com cursor, anexa tokens
+        if (window.AgroAPI.postChatStream) {
+          try {
+            const row = document.createElement("div");
+            row.className = "msg-row ai";
+            const now = new Date();
+            const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            const bubble = document.createElement("div");
+            bubble.className = "msg-bubble";
+            bubble.innerHTML = `<p>▍</p><div class="msg-timestamp">${timeStr} • ✓✓</div>`;
+            row.appendChild(bubble);
+            chatMessagesStream.appendChild(row);
+            chatMessagesStream.scrollTop = chatMessagesStream.scrollHeight;
+            const p = bubble.querySelector("p");
+            let full = "";
+            const { resposta, meta } = await window.AgroAPI.postChatStream(produtorId, text, {
+              onMeta: () => {},
+              onToken: (tok) => {
+                full += tok;
+                p.innerHTML = (full ? formatMarkdown(escapeHTML(full)) : "") + "▍";
+                chatMessagesStream.scrollTop = chatMessagesStream.scrollHeight;
+              },
+            });
+            row.remove();
+            if (meta && (meta.erro || (!resposta && meta.mensagem))) {
+              const sugestoes = (meta.sugestoes || []).map(s => `\n• ${s}`).join("");
+              const msg = `${meta.mensagem || "Não consegui entender."}${sugestoes ? `\n\nTente perguntar:${sugestoes}` : ""}`;
+              appendMessage("ai", msg, { fonte: "AgroPilot", confianca: 60, audioText: meta.mensagem });
+            } else {
+              appendMessage("ai", resposta || full, {
+                fonte: (meta && meta.fonte) || "API",
+                porQue: meta && meta.intencao ? `Intenção: ${meta.intencao}` : undefined,
+                confianca: 92,
+                audioText: resposta || full,
+              });
+            }
+            return;
+          } catch {}
+        }
         try {
           const apiResp = await window.AgroAPI.postChat(produtorId, text);
           if (apiResp.erro) {

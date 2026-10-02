@@ -8,17 +8,19 @@
 
 const API_BASE_URL = window.AGROPILOT_API_URL || "http://localhost:8000";
 
-// Timeout em ms para todas as chamadas
+// Timeout em ms para chamadas curtas (health etc)
 const REQUEST_TIMEOUT_MS = 8000;
+// Chat não-stream pode esperar LLM (~22s+): sem abort prematuro
+const CHAT_TIMEOUT_MS = 120000;
 
 // Estado de conectividade
 let _backendOnline = null; // null = não verificado, true/false = verificado
 
 // ─── Utilitários ─────────────────────────────────────────────────────────────
 
-async function _fetchWithTimeout(url, options = {}) {
+async function _fetchWithTimeout(url, options = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const response = await fetch(url, {
@@ -212,12 +214,91 @@ export async function postChat(produtorId, mensagem) {
     const res = await _fetchWithTimeout(`${API_BASE_URL}/api/chat`, {
       method: "POST",
       body: JSON.stringify({ produtor_id: produtorId, mensagem }),
-    });
+    }, CHAT_TIMEOUT_MS);
     return await _json(res);
   } catch (err) {
     console.warn("[AgroPilot API] postChat falhou, usando mock:", err.message);
     return _mockChat(mensagem);
   }
+}
+
+/**
+ * Chat em streaming (SSE): POST /api/chat/stream sem timeout/abort.
+ * Eventos: meta {intencao,fonte,...}, delta {texto}, message (JSON único p/ intents simples), done.
+ * @param {string} produtorId
+ * @param {string} mensagem
+ * @param {{onMeta?: Function, onToken?: Function}} cbs
+ * @returns {Promise<{resposta: string, meta: object|null}>}
+ */
+export async function postChatStream(produtorId, mensagem, { onMeta, onToken } = {}) {
+  const res = await fetch(`${API_BASE_URL}/api/chat/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ produtor_id: produtorId, mensagem }),
+  });
+  if (!res.ok || !res.body) {
+    throw new Error(`HTTP ${res.status}`);
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  let meta = null;
+  let texto = "";
+  let unico = null;
+  let curEvent = "message";
+
+  const dispatch = (rawEvent, rawData) => {
+    let data;
+    try { data = JSON.parse(rawData); } catch { return; }
+    if (rawEvent === "meta") {
+      meta = data;
+      if (onMeta) onMeta(data);
+    } else if (rawEvent === "delta") {
+      const t = data.texto || "";
+      texto += t;
+      if (onToken) onToken(t);
+    } else if (rawEvent === "message") {
+      unico = data;
+      if (data.resposta) {
+        texto = data.resposta;
+        if (onToken) onToken(data.resposta);
+      }
+      if (data.intencao || data.fonte) {
+        meta = { intencao: data.intencao, fonte: data.fonte, data_extracao: data.data_extracao, dados: data.dados };
+        if (onMeta) onMeta(meta);
+      }
+    }
+    // done: sem ação
+  };
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let idx;
+    while ((idx = buf.indexOf("\n\n")) !== -1) {
+      const bloco = buf.slice(0, idx);
+      buf = buf.slice(idx + 2);
+      let ev = curEvent;
+      const datas = [];
+      for (const linha of bloco.split("\n")) {
+        if (linha.startsWith("event:")) ev = linha.slice(6).trim() || "message";
+        else if (linha.startsWith("data:")) datas.push(linha.slice(5).trim());
+      }
+      curEvent = "message";
+      if (datas.length) dispatch(ev, datas.join("\n"));
+    }
+  }
+  if (buf.trim()) {
+    let ev = curEvent;
+    const datas = [];
+    for (const linha of buf.split("\n")) {
+      if (linha.startsWith("event:")) ev = linha.slice(6).trim() || "message";
+      else if (linha.startsWith("data:")) datas.push(linha.slice(5).trim());
+    }
+    if (datas.length) dispatch(ev, datas.join("\n"));
+  }
+  return { resposta: texto, meta: unico || meta };
 }
 
 function _mockChat(mensagem) {
@@ -416,6 +497,7 @@ window.AgroAPI = {
   getProdutor,
   postProdutor,
   postChat,
+  postChatStream,
   getAlertas,
   simularAlerta,
   saveSession,

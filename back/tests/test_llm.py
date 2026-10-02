@@ -72,6 +72,7 @@ def test_chat_usa_llm_quando_disponivel(monkeypatch):
     import app.routes.chat as chat
 
     monkeypatch.setattr(chat, "gerar_resposta", lambda *a, **k: "texto LLM")
+    monkeypatch.setattr(chat, "responder_com_tools", lambda *a, **k: (None, []))
     res = TestClient(app).post(
         "/api/chat", json={"produtor_id": "abc123", "mensagem": "minha uva tá com míldio"}
     )
@@ -88,6 +89,7 @@ def test_chat_fallback_sem_llm(monkeypatch):
     import app.routes.chat as chat
 
     monkeypatch.setattr(chat, "gerar_resposta", lambda *a, **k: None)
+    monkeypatch.setattr(chat, "responder_com_tools", lambda *a, **k: (None, []))
     res = TestClient(app).post(
         "/api/chat", json={"produtor_id": "abc123", "mensagem": "quando planto feijao?"}
     )

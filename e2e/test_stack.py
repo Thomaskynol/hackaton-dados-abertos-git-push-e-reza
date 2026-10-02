@@ -8,7 +8,7 @@ import pytest
 
 API = os.getenv("AGROPILOT_API_URL", "http://localhost:8000")
 WEB = os.getenv("AGROPILOT_WEB_URL", "http://localhost:8080")
-TIMEOUT = 5
+TIMEOUT = int(os.getenv("AGROPILOT_TIMEOUT_S", "60"))
 
 
 def _get(url) -> tuple:

@@ -27,7 +27,10 @@ def test_chat_planejamento():
     assert "ZARC" in data["fonte"]
 
 
-def test_chat_fallback():
+def test_chat_fallback(monkeypatch):
+    import app.routes.chat as chat
+    monkeypatch.setattr(chat, "responder_com_tools", lambda *a, **k: (None, []))
+    monkeypatch.setattr(chat, "gerar_resposta", lambda *a, **k: None)
     res = client.post("/api/chat", json={"produtor_id": "abc123", "mensagem": "xyz123"})
     assert res.status_code == 200
     data = res.json()

@@ -24,6 +24,10 @@ Este contrato define a interface de comunicação entre o Frontend (NextJS) e o 
 
 Envia uma mensagem de texto e retorna a resposta com intenção identificada, dados estruturados e fontes abertas consultadas.
 
+### 2.1b POST /api/chat/stream (SSE `text/event-stream`)
+
+Mesmo request do `/api/chat`, sem timeout no fetch. Eventos: `meta` {intencao, fonte, data_extracao, dados}, `delta` {texto} (ou fallback único com `base["resposta"]`), `message` (JSON único p/ CLIMA/VENDA/PERFIL/SAUDACAO/NAO_ENTENDI), `done` fecha.
+
 **Request Body:**
 ```json
 {
