@@ -48,6 +48,122 @@ export async function postProdutor(p: ProdutorPayload): Promise<ProdutorCriado> 
   return { ...data, id: String(id) };
 }
 
+/* ---------------- conta (signup/login/GET/PATCH) ---------------- */
+
+export class ApiError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+export interface ContaLavoura {
+  cultura: string;
+  area_ha: number | null;
+  solo?: string | number | null;
+  irrigacao?: boolean | null;
+  [k: string]: unknown;
+}
+
+export interface Conta {
+  id: string;
+  nome: string;
+  telefone: string;
+  municipio: string;
+  uf: string;
+  cod_ibge: string;
+  codigo_ibge?: string;
+  lavouras: ContaLavoura[];
+  onboardingConcluido: boolean;
+  hectares_total?: number;
+  solo_inferido?: string | null;
+  [k: string]: unknown;
+}
+
+export interface ContaPatch {
+  nome?: string;
+  municipio?: string;
+  uf?: string;
+  cod_ibge?: string;
+  codigo_ibge?: string;
+  lavouras?: Array<{
+    cultura: string;
+    area_ha: number | null;
+    solo?: string | number | null;
+    irrigacao?: boolean | null;
+  }>;
+  onboardingConcluido?: boolean;
+}
+
+async function erroApi(res: Response, rota: string): Promise<never> {
+  let detalhe = "";
+  try {
+    const j = (await res.json()) as Record<string, unknown>;
+    const d = j["detail"];
+    if (typeof d === "string") detalhe = d;
+  } catch {
+    /* corpo sem JSON: segue só com o status */
+  }
+  throw new ApiError(res.status, `${rota} ${res.status}${detalhe ? `: ${detalhe}` : ""}`);
+}
+
+function normalizarConta(data: Record<string, unknown>): Conta {
+  const id = data["id"] ?? data["produtor_id"] ?? "";
+  return {
+    ...data,
+    id: String(id),
+    nome: typeof data["nome"] === "string" ? (data["nome"] as string) : "",
+    telefone: typeof data["telefone"] === "string" ? (data["telefone"] as string) : "",
+    municipio: typeof data["municipio"] === "string" ? (data["municipio"] as string) : "",
+    uf: typeof data["uf"] === "string" ? (data["uf"] as string) : "",
+    cod_ibge: String(data["cod_ibge"] ?? data["codigo_ibge"] ?? ""),
+    lavouras: Array.isArray(data["lavouras"]) ? (data["lavouras"] as ContaLavoura[]) : [],
+    onboardingConcluido: Boolean(data["onboardingConcluido"]),
+  } as Conta;
+}
+
+/** POST /api/produtor/signup {telefone,nome} -> 201 conta; 409 telefone existe. */
+export async function signup(telefone: string, nome: string): Promise<Conta> {
+  const res = await fetch(`${apiUrl()}/api/produtor/signup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ telefone, nome }),
+  });
+  if (!res.ok) await erroApi(res, "POST /api/produtor/signup");
+  return normalizarConta((await res.json()) as Record<string, unknown>);
+}
+
+/** POST /api/produtor/login {telefone} -> 200 conta; 404 sem conta. */
+export async function login(telefone: string): Promise<Conta> {
+  const res = await fetch(`${apiUrl()}/api/produtor/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ telefone }),
+  });
+  if (!res.ok) await erroApi(res, "POST /api/produtor/login");
+  return normalizarConta((await res.json()) as Record<string, unknown>);
+}
+
+/** GET /api/produtor/{id} — conta cheia. */
+export async function getConta(id: string): Promise<Conta> {
+  const res = await fetch(`${apiUrl()}/api/produtor/${encodeURIComponent(id)}`);
+  if (!res.ok) await erroApi(res, "GET /api/produtor/{id}");
+  return normalizarConta((await res.json()) as Record<string, unknown>);
+}
+
+/** PATCH /api/produtor/{id} — atualização parcial. */
+export async function patchConta(id: string, patch: ContaPatch): Promise<Conta> {
+  const res = await fetch(`${apiUrl()}/api/produtor/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) await erroApi(res, "PATCH /api/produtor/{id}");
+  return normalizarConta((await res.json()) as Record<string, unknown>);
+}
+
 /* ---------------- regiao ---------------- */
 
 /** GET /api/regiao?uf=&ibge=&cultura= — retorna o agregado bruto (normalizado na page). */

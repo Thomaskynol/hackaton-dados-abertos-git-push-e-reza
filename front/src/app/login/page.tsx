@@ -1,20 +1,25 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Phone, ArrowRight } from "lucide-react";
 import { Button } from "@/components/Button";
 import { AudioButton } from "@/components/AudioButton";
 import { usePerfil } from "@/lib/perfil-context";
+import { ApiError, getConta, login } from "@/lib/api";
 
 /**
- * Entrada só com telefone (sem senha para decorar).
- * Se o perfil já existe no aparelho, entra direto; senão, segue p/ onboarding.
+ * Entrada com telefone (sem senha para decorar).
+ * Tenta login no backend; 404 -> oferece criar conta em /signup.
  */
 export default function Login() {
   const router = useRouter();
-  const { perfil, atualizar } = usePerfil();
+  const { perfil, atualizar, aplicarConta } = usePerfil();
   const [tel, setTel] = useState(perfil.telefone);
+  const [carregando, setCarregando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [naoEncontrada, setNaoEncontrada] = useState(false);
 
   function formatar(v: string) {
     const d = v.replace(/\D/g, "").slice(0, 11);
@@ -23,10 +28,33 @@ export default function Login() {
     return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
   }
 
-  function entrar(e: React.FormEvent) {
+  async function entrar(e: React.FormEvent) {
     e.preventDefault();
-    atualizar({ telefone: tel });
-    router.push(perfil.onboardingConcluido ? "/mapa" : "/onboarding");
+    if (tel.replace(/\D/g, "").length < 10 || carregando) return;
+    setCarregando(true);
+    setErro(null);
+    setNaoEncontrada(false);
+    const telefone = tel;
+    atualizar({ telefone });
+    try {
+      const conta = await login(telefone);
+      let completa = conta;
+      try {
+        completa = await getConta(conta.id);
+      } catch {
+        /* login já trouxe a conta cheia; segue com ela */
+      }
+      aplicarConta(completa, telefone);
+      router.push(completa.onboardingConcluido ? "/mapa" : "/onboarding");
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) {
+        setNaoEncontrada(true);
+      } else {
+        setErro("Sem conexão — tente de novo quando tiver internet. Seu telefone ficou salvo no aparelho.");
+      }
+    } finally {
+      setCarregando(false);
+    }
   }
 
   const pergunta = "Entre com seu telefone. É rápido e sem senha para decorar.";
@@ -72,11 +100,37 @@ export default function Login() {
               className="min-h-[56px] w-full bg-transparent text-[1.1rem] text-ink outline-none placeholder:text-muted"
             />
           </div>
+          <p className="mt-2 text-[0.9rem] text-muted">
+            Novo por aqui? Depois de entrar você informa seu nome no cadastro.
+          </p>
 
-          <Button type="submit" bloco className="mt-6" disabled={tel.replace(/\D/g, "").length < 10}>
-            Continuar <ArrowRight size={20} />
+          <Button type="submit" bloco className="mt-6" disabled={tel.replace(/\D/g, "").length < 10 || carregando}>
+            {carregando ? "Entrando…" : "Continuar"} <ArrowRight size={20} />
           </Button>
         </form>
+
+        {naoEncontrada ? (
+          <div className="mt-6 rounded-xl2 border border-terra bg-terra-soft p-4" role="status">
+            <p className="font-bold text-terra-ink">Conta não encontrada, crie sua conta.</p>
+            <Link
+              href="/signup"
+              className="mt-3 inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl2 bg-terra px-5 font-bold text-white shadow-soft"
+            >
+              Criar conta <ArrowRight size={20} aria-hidden />
+            </Link>
+          </div>
+        ) : null}
+
+        {erro ? (
+          <p className="mt-4 text-[0.95rem] font-semibold text-muted" role="status">{erro}</p>
+        ) : null}
+
+        <p className="mt-6 text-center text-[0.95rem] text-muted">
+          Ainda não tem conta?{" "}
+          <Link href="/signup" className="font-bold text-terra-ink underline">
+            Criar conta
+          </Link>
+        </p>
 
         <p className="mt-8 text-center text-[0.9rem] text-muted">
           Dados de fontes públicas: ZARC/MAPA · Embrapa · Agrofit · ANA
