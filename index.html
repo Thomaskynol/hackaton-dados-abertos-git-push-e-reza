@@ -1,18 +1,23 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AgroPilot 24/7 — Copiloto Agrícola</title>
-  <meta name="description" content="O copiloto agrícola 24/7 que mitiga erros do pequeno produtor. Acompanha da semente à venda com ZARC, alertas proativos e interface conversacional simples.">
-  
+  <meta name="description"
+    content="O copiloto agrícola 24/7 que mitiga erros do pequeno produtor. Acompanha da semente à venda com ZARC, alertas proativos e interface conversacional simples.">
+
   <!-- Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap"
+    rel="stylesheet">
+
   <link rel="stylesheet" href="styles/main.css">
 </head>
+
 <body>
 
   <!-- ====================================================================
@@ -20,7 +25,7 @@
        ==================================================================== -->
   <div class="onboarding-overlay" id="onboarding-screen">
     <div class="onboarding-card">
-      
+
       <!-- Brand & Header -->
       <div class="onboarding-header">
         <div class="onboarding-brand-badge">
@@ -29,41 +34,42 @@
         </div>
         <h1 class="onboarding-title">Boas-vindas ao Copiloto Agrícola</h1>
         <p class="onboarding-subtitle">
-          Informe os dados da sua propriedade para ativarmos o monitoramento climático, alertas fitossanitários e a janela oficial do <strong>ZARC / MAPA</strong>.
+          Informe os dados da sua propriedade para ativarmos o monitoramento climático, alertas fitossanitários e a
+          janela oficial do <strong>ZARC / MAPA</strong>.
         </p>
       </div>
 
       <!-- Onboarding Form -->
-      <form id="onboarding-form" class="onboarding-form">
+      <form id="onboarding-form" class="onboarding-form" novalidate>
         <div class="onboarding-grid">
           <!-- Nome -->
           <div class="onboarding-group">
             <label for="onb-nome">Nome do Produtor ou Usuário *</label>
-            <input type="text" id="onb-nome" class="onboarding-input" placeholder="Ex: Gabriel Lopes ou Seu Sebastião" required>
+            <input type="text" id="onb-nome" class="onboarding-input" placeholder="Ex: Gabriel Lopes ou Seu Sebastião">
           </div>
 
           <!-- Telefone -->
           <div class="onboarding-group">
             <label for="onb-telefone">Telefone / WhatsApp *</label>
-            <input type="tel" id="onb-telefone" class="onboarding-input" placeholder="(64) 99821-4472" required>
+            <input type="tel" id="onb-telefone" class="onboarding-input" placeholder="(64) 99821-4472">
           </div>
 
           <!-- Nome da Propriedade / Gleba -->
           <div class="onboarding-group">
             <label for="onb-gleba">Nome da Gleba / Propriedade *</label>
-            <input type="text" id="onb-gleba" class="onboarding-input" placeholder="Ex: Sítio Bela Vista" required>
+            <input type="text" id="onb-gleba" class="onboarding-input" placeholder="Ex: Sítio Bela Vista">
           </div>
 
           <!-- Município / Estado -->
           <div class="onboarding-group">
             <label for="onb-municipio">Município e Estado *</label>
-            <input type="text" id="onb-municipio" class="onboarding-input" placeholder="Ex: Rio Verde - GO" required>
+            <input type="text" id="onb-municipio" class="onboarding-input" placeholder="Ex: Rio Verde - GO">
           </div>
 
           <!-- Cultura -->
           <div class="onboarding-group">
             <label for="onb-cultura">Cultura da Safra *</label>
-            <select id="onb-cultura" class="onboarding-input onboarding-select" required>
+            <select id="onb-cultura" class="onboarding-input onboarding-select">
               <option value="" disabled selected>Selecione a cultura...</option>
               <option value="soja">🌱 Soja (Grão)</option>
               <option value="milho">🌽 Milho Safrinha</option>
@@ -76,9 +82,9 @@
           <!-- Tipo de Solo (ZARC) -->
           <div class="onboarding-group">
             <label for="onb-solo">Tipo de Solo (Classificação ZARC) *</label>
-            <select id="onb-solo" class="onboarding-input onboarding-select" required>
+            <select id="onb-solo" class="onboarding-input onboarding-select">
               <option value="" disabled selected>Selecione o tipo de solo...</option>
-              <option value="AD3">AD3 - Argiloso (CAD > 50mm) ★</option>
+              <option value="AD3">AD3 - Argiloso (CAD > 50mm)</option>
               <option value="AD2">AD2 - Textura Média (CAD 35-50mm)</option>
               <option value="AD1">AD1 - Arenoso (CAD < 35mm)</option>
             </select>
@@ -87,7 +93,7 @@
           <!-- Área -->
           <div class="onboarding-group onboarding-col-full">
             <label for="onb-area">Área da Lavoura (Hectares) *</label>
-            <input type="number" step="0.1" min="0.1" id="onb-area" class="onboarding-input" placeholder="Ex: 15.0" required>
+            <input type="number" step="0.1" min="0.1" id="onb-area" class="onboarding-input" placeholder="Ex: 15.0">
           </div>
         </div>
 
@@ -108,13 +114,24 @@
 
   <!-- 1. Minimal Top Navigation -->
   <header class="clean-navbar">
-    <div class="nav-brand" id="brand-home" title="AgroPilot 24/7">
-      <div class="brand-dot-logo">🌾</div>
-      <div>
-        <div class="brand-name">AgroPilot</div>
-        <div class="status-indicator">
-          <span class="live-pulse-dot"></span>
-          <span>Online 24/7</span>
+    <div class="nav-left-group">
+      <!-- Menu Histórico de Chats (Estilo ChatGPT) Toggle -->
+      <button class="btn-clean btn-icon-only" id="btn-open-history" title="Histórico de Conversas">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+      </button>
+
+      <div class="nav-brand" id="brand-home" title="AgroPilot 24/7">
+        <div class="brand-dot-logo">🌾</div>
+        <div>
+          <div class="brand-name">AgroPilot</div>
+          <div class="status-indicator">
+            <span class="live-pulse-dot"></span>
+            <span>Online 24/7</span>
+          </div>
         </div>
       </div>
     </div>
@@ -139,7 +156,8 @@
           <span style="font-size: 0.65rem;">▾</span>
         </button>
         <div class="sim-menu" id="sim-menu">
-          <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; padding: 0.25rem 0.5rem; text-transform: uppercase;">
+          <div
+            style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; padding: 0.25rem 0.5rem; text-transform: uppercase;">
             Cenários de Teste (Banca):
           </div>
           <button class="sim-menu-item" data-scenario="chuva">
@@ -161,38 +179,49 @@
       </div>
 
       <!-- Modo Campo (Luz Solar) -->
-      <button class="btn-clean btn-icon-only" id="btn-toggle-sunlight" title="Modo Campo: Alto Contraste para Luz Solar Forte">
+      <button class="btn-clean btn-icon-only" id="btn-toggle-sunlight"
+        title="Modo Campo: Alto Contraste para Luz Solar Forte">
         ☀️
       </button>
 
       <!-- Menu Drawer Toggle -->
       <button class="btn-clean btn-icon-only" id="btn-open-drawer" title="Menu e Informações da Gleba">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
       </button>
     </div>
   </header>
 
   <!-- 2. Main Centered Chat Canvas -->
   <main class="clean-chat-canvas">
-    
+
     <!-- Messages Scrollable Stream -->
     <div class="messages-scrollable" id="chat-messages-stream">
-      
+
       <!-- Initial Friendly Proactive Welcome -->
       <div class="msg-row ai">
         <div class="msg-bubble">
           <p>Olá, <strong>Seu Sebastião</strong>! Sou o seu <strong>AgroPilot 24/7</strong>.</p>
           <p style="margin-top: 0.4rem;">
-            Estou monitorando sua lavoura de <strong>Soja no solo AD3</strong> em Rio Verde. Como no pequeno produtor <strong>não há margem para errar</strong>, estou de olho no tempo e nas pragas dia e noite.
+            Estou monitorando sua lavoura de <strong>Soja no solo AD3</strong> em Rio Verde. Como no pequeno produtor
+            <strong>não há margem para errar</strong>, estou de olho no tempo e nas pragas dia e noite.
           </p>
           <p style="margin-top: 0.4rem; color: var(--amber);">
-            🌧️ <strong>Aviso de Hoje:</strong> Previsão de <strong>chuva forte (75mm)</strong> nas próximas 48h. Evite pulverizar defensivo hoje para não perder o produto e confira as saídas das curvas de nível.
+            🌧️ <strong>Aviso de Hoje:</strong> Previsão de <strong>chuva forte (75mm)</strong> nas próximas 48h. Evite
+            pulverizar defensivo hoje para não perder o produto e confira as saídas das curvas de nível.
           </p>
 
           <!-- Voice Note (WhatsApp style) -->
           <div class="clean-voice-bar">
-            <button class="btn-play-clean" data-audio="Olá Seu Sebastião! Previsão de chuva forte de 75 milímetros em Rio Verde nas próximas 48 horas. Não pulverize nada hoje pra não perder veneno e confira as curvas de nível no talhão." title="Ouvir áudio">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <button class="btn-play-clean"
+              data-audio="Olá Seu Sebastião! Previsão de chuva forte de 75 milímetros em Rio Verde nas próximas 48 horas. Não pulverize nada hoje pra não perder veneno e confira as curvas de nível no talhão."
+              title="Ouvir áudio">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="5 3 19 12 5 21 5 3" />
+              </svg>
             </button>
             <div class="voice-wave">
               <span class="wave-line" style="height: 6px;"></span>
@@ -207,12 +236,14 @@
 
           <!-- Clean Explainability Tag -->
           <div class="clean-explain-card">
-            <div class="explain-summary" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'">
+            <div class="explain-summary"
+              onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'">
               <span>💡 Por que alertei você • 95% Confiança</span>
               <span style="font-size: 0.65rem;">▾</span>
             </div>
             <div class="explain-details" style="display: none;">
-              Frente polar no radar CPTEC com saturação rápida do solo argiloso AD3. Fonte: INMET & ZARC MAPA Portaria 142/2024.
+              Frente polar no radar CPTEC com saturação rápida do solo argiloso AD3. Fonte: INMET & ZARC MAPA Portaria
+              142/2024.
             </div>
           </div>
 
@@ -224,41 +255,63 @@
 
     <!-- 3. Bottom Clean Input Area -->
     <div class="clean-input-wrapper">
-      
+
       <!-- Quick Suggestion Chips Carousel com Navegação -->
       <div class="chips-container-wrapper">
-        <button type="button" class="btn-scroll-chips btn-scroll-left" id="btn-scroll-chips-left" title="Rolar para esquerda" aria-label="Rolar opções para esquerda">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        <button type="button" class="btn-scroll-chips btn-scroll-left" id="btn-scroll-chips-left"
+          title="Rolar para esquerda" aria-label="Rolar opções para esquerda">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
         </button>
 
-        <div class="clean-chips-bar" id="clean-chips-bar" tabindex="0" role="region" aria-label="Sugestões de perguntas rápidas">
-          <button class="clean-chip" data-prompt="Posso plantar semana que vem?">🌾 Posso plantar semana que vem?</button>
+        <div class="clean-chips-bar" id="clean-chips-bar" tabindex="0" role="region"
+          aria-label="Sugestões de perguntas rápidas">
+          <button class="clean-chip" data-prompt="Posso plantar semana que vem?">🌾 Posso plantar semana que
+            vem?</button>
           <button class="clean-chip" data-prompt="Vi uma lagarta na folha de soja">🐛 Vi uma lagarta na folha</button>
           <button class="clean-chip" data-prompt="Vai chover forte nos próximos dias?">⛈️ Vai chover forte?</button>
-          <button class="clean-chip" data-prompt="Qual o preço da saca hoje e onde vender?">💰 Preço da saca hoje</button>
+          <button class="clean-chip" data-prompt="Qual o preço da saca hoje e onde vender?">💰 Preço da saca
+            hoje</button>
           <button class="clean-chip" data-prompt="Qual semente comprar para a safra?">🌱 Qual semente comprar?</button>
           <button class="clean-chip" data-prompt="Como funciona o seguro Proagro?">🛡️ Seguro Proagro</button>
         </div>
 
-        <button type="button" class="btn-scroll-chips btn-scroll-right" id="btn-scroll-chips-right" title="Rolar para direita" aria-label="Rolar opções para direita">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        <button type="button" class="btn-scroll-chips btn-scroll-right" id="btn-scroll-chips-right"
+          title="Rolar para direita" aria-label="Rolar opções para direita">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
         </button>
       </div>
 
       <!-- Floating Capsule Form -->
       <form id="clean-chat-form" class="clean-input-capsule">
-        <button type="button" class="btn-tool-input" id="btn-open-photo" title="Enviar Foto da Lavoura para Diagnóstico">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        <button type="button" class="btn-tool-input" id="btn-open-photo"
+          title="Enviar Foto da Lavoura para Diagnóstico">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+            <circle cx="12" cy="13" r="4" />
+          </svg>
         </button>
 
         <button type="button" class="btn-tool-input" id="btn-clean-mic" title="Gravar Áudio de Voz">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+            <line x1="12" y1="19" x2="12" y2="23" />
+            <line x1="8" y1="23" x2="16" y2="23" />
+          </svg>
         </button>
 
-        <input type="text" id="clean-input-text" class="clean-input-field" placeholder="Pergunte ao AgroPilot (ou clique nos atalhos acima)..." autocomplete="off">
+        <input type="text" id="clean-input-text" class="clean-input-field"
+          placeholder="Pergunte ao AgroPilot (ou clique nos atalhos acima)..." autocomplete="off">
 
         <button type="submit" class="btn-send-capsule" title="Enviar Mensagem">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="22" y1="2" x2="11" y2="13" />
+            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+          </svg>
         </button>
       </form>
 
@@ -267,11 +320,60 @@
   </main>
 
   <!-- ====================================================================
+       Histórico de Conversas (Estilo ChatGPT) — Gaveta Lateral Esquerda
+       ==================================================================== -->
+  <div class="drawer-backdrop drawer-backdrop-left" id="history-backdrop">
+    <aside class="drawer-panel drawer-panel-left" id="history-panel">
+      <!-- Header do Histórico -->
+      <div class="history-drawer-header">
+        <div class="history-header-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+          <span>Histórico de Chats</span>
+        </div>
+        <button class="btn-close-drawer" id="btn-close-history" title="Fechar histórico">✕</button>
+      </div>
+
+      <!-- Botão Novo Chat estilo ChatGPT -->
+      <button class="btn-new-chat" id="btn-new-chat" title="Iniciar uma nova conversa com o Copiloto">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span>Novo Chat</span>
+      </button>
+
+      <!-- Lista de Conversas Recentes -->
+      <div class="history-conversations-container">
+        <div class="history-section-label">Conversas Recentes</div>
+        <div class="history-chat-list" id="history-chat-list">
+          <!-- Renderizado dinamicamente via JS -->
+        </div>
+      </div>
+
+      <!-- Rodapé do Histórico -->
+      <div class="history-drawer-footer">
+        <div class="history-user-info">
+          <div class="history-user-avatar">👨‍🌾</div>
+          <div class="history-user-details">
+            <span class="history-user-name" id="history-farmer-name">Seu Sebastião</span>
+            <span class="history-user-sub">Copiloto Ativo 24/7</span>
+          </div>
+        </div>
+        <button class="btn-clean btn-clear-history" id="btn-clear-all-chats" title="Limpar todo o histórico">
+          🗑️
+        </button>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ====================================================================
        4. Slide-out Drawer: Minha Propriedade & ZARC (Clean on Demand)
        ==================================================================== -->
   <div class="drawer-backdrop" id="drawer-backdrop">
     <div class="drawer-panel" id="drawer-panel">
-      
+
       <div class="drawer-header">
         <div>
           <div class="drawer-title">Minha Propriedade & Safra</div>
@@ -284,7 +386,8 @@
       <div class="clean-card">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <strong id="drawer-farm-name" style="font-size: 1rem;">Sítio Bela Vista</strong>
-          <span class="gleba-safra-badge" style="font-size: 0.72rem; padding: 2px 8px; border-radius: var(--radius-pill); border: 1px solid var(--emerald-primary); color: var(--emerald-primary); background: var(--emerald-subtle); font-weight: 600;">
+          <span class="gleba-safra-badge"
+            style="font-size: 0.72rem; padding: 2px 8px; border-radius: var(--radius-pill); border: 1px solid var(--emerald-primary); color: var(--emerald-primary); background: var(--emerald-subtle); font-weight: 600;">
             🌱 Soja Safra 2026/27
           </span>
         </div>
@@ -292,7 +395,8 @@
           Rio Verde - GO • 14.5 hectares
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem; font-size: 0.75rem;">
+        <div
+          style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem; font-size: 0.75rem;">
           <div style="background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: var(--radius-sm);">
             <span style="color: var(--text-muted); display: block;">Solo (ZARC):</span>
             <strong id="drawer-soil-val">AD3 Argiloso</strong>
@@ -308,7 +412,8 @@
       <div class="clean-card">
         <strong style="font-size: 0.85rem;">📊 Janela ZARC Recomendada</strong>
         <p style="font-size: 0.75rem; color: var(--text-secondary);">
-          Decêndio atual: <strong>Out/D3 a Nov/D2</strong> (Risco 20% - Janela Ideal). Plantar nesta janela garante cobertura total do Proagro.
+          Decêndio atual: <strong>Out/D3 a Nov/D2</strong> (Risco 20% - Janela Ideal). Plantar nesta janela garante
+          cobertura total do Proagro.
         </p>
         <button class="btn-clean" id="btn-ask-zarc" style="width: fit-content; margin-top: 0.25rem;">
           Consultar Janela Completa no Chat
@@ -346,7 +451,8 @@
         <button class="btn-clean" id="btn-open-edit-profile" style="justify-content: center; padding: 0.6rem;">
           ⚙️ Editar Nome, Telefone e Gleba
         </button>
-        <button class="btn-clean" id="btn-reopen-onboarding" style="justify-content: center; padding: 0.6rem; border-color: rgba(16, 185, 129, 0.35); color: var(--emerald-primary);">
+        <button class="btn-clean" id="btn-reopen-onboarding"
+          style="justify-content: center; padding: 0.6rem; border-color: rgba(16, 185, 129, 0.35); color: var(--emerald-primary);">
           🌾 Nova Propriedade / Trocar Produtor
         </button>
       </div>
@@ -359,7 +465,8 @@
 
   <!-- Modal Foto de Campo (Diagnóstico Visual) -->
   <div class="drawer-backdrop" id="modal-photo-backdrop" style="align-items: center; justify-content: center;">
-    <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); max-width: 440px; width: 90%; padding: 1.5rem; box-shadow: var(--shadow-lg);">
+    <div
+      style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); max-width: 440px; width: 90%; padding: 1.5rem; box-shadow: var(--shadow-lg);">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
         <div>
           <strong style="font-size: 1.05rem;">📸 Diagnóstico por Foto</strong>
@@ -369,7 +476,8 @@
       </div>
 
       <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-        <button class="sim-menu-item btn-choose-photo" data-photo="lagarta" style="border: 1px solid var(--border-subtle);">
+        <button class="sim-menu-item btn-choose-photo" data-photo="lagarta"
+          style="border: 1px solid var(--border-subtle);">
           <span style="font-size: 1.4rem;">🐛</span>
           <div>
             <strong>Lagarta na Folha</strong>
@@ -377,7 +485,8 @@
           </div>
         </button>
 
-        <button class="sim-menu-item btn-choose-photo" data-photo="ferrugem" style="border: 1px solid var(--border-subtle);">
+        <button class="sim-menu-item btn-choose-photo" data-photo="ferrugem"
+          style="border: 1px solid var(--border-subtle);">
           <span style="font-size: 1.4rem;">🍂</span>
           <div>
             <strong>Pontos Escuros (Ferrugem)</strong>
@@ -385,7 +494,8 @@
           </div>
         </button>
 
-        <button class="sim-menu-item btn-choose-photo" data-photo="clorose" style="border: 1px solid var(--border-subtle);">
+        <button class="sim-menu-item btn-choose-photo" data-photo="clorose"
+          style="border: 1px solid var(--border-subtle);">
           <span style="font-size: 1.4rem;">🌱</span>
           <div>
             <strong>Folha Amarela (Clorose)</strong>
@@ -398,7 +508,8 @@
 
   <!-- Modal Editar Perfil -->
   <div class="drawer-backdrop" id="modal-profile-backdrop" style="align-items: center; justify-content: center;">
-    <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); max-width: 440px; width: 90%; padding: 1.5rem; box-shadow: var(--shadow-lg);">
+    <div
+      style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); max-width: 440px; width: 90%; padding: 1.5rem; box-shadow: var(--shadow-lg);">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
         <strong style="font-size: 1.05rem;">Cadastro do Produtor</strong>
         <button class="btn-close-drawer" id="btn-close-profile-modal">✕</button>
@@ -406,24 +517,37 @@
 
       <form id="form-clean-profile" style="display: flex; flex-direction: column; gap: 0.85rem;">
         <div>
-          <label style="font-size: 0.8rem; color: #cbd5e1; display: block; margin-bottom: 0.3rem;">Nome Completo:</label>
-          <input type="text" id="prof-nome" class="clean-input-capsule modal-profile-input" style="width: 100%; border-radius: var(--radius-sm); color: #ffffff; background: var(--bg-page);" value="Seu Sebastião da Silva" required>
+          <label style="font-size: 0.8rem; color: #cbd5e1; display: block; margin-bottom: 0.3rem;">Nome
+            Completo:</label>
+          <input type="text" id="prof-nome" class="clean-input-capsule modal-profile-input"
+            style="width: 100%; border-radius: var(--radius-sm); color: #ffffff; background: var(--bg-page);"
+            value="Seu Sebastião da Silva" required>
         </div>
         <div>
-          <label style="font-size: 0.8rem; color: #cbd5e1; display: block; margin-bottom: 0.3rem;">Telefone (WhatsApp):</label>
-          <input type="tel" id="prof-telefone" class="clean-input-capsule modal-profile-input" style="width: 100%; border-radius: var(--radius-sm); color: #ffffff; background: var(--bg-page);" value="(64) 99821-4472" required>
+          <label style="font-size: 0.8rem; color: #cbd5e1; display: block; margin-bottom: 0.3rem;">Telefone
+            (WhatsApp):</label>
+          <input type="tel" id="prof-telefone" class="clean-input-capsule modal-profile-input"
+            style="width: 100%; border-radius: var(--radius-sm); color: #ffffff; background: var(--bg-page);"
+            value="(64) 99821-4472" required>
         </div>
         <div>
-          <label style="font-size: 0.8rem; color: #cbd5e1; display: block; margin-bottom: 0.3rem;">Gleba / Propriedade:</label>
-          <input type="text" id="prof-gleba" class="clean-input-capsule modal-profile-input" style="width: 100%; border-radius: var(--radius-sm); color: #ffffff; background: var(--bg-page);" value="Sítio Bela Vista" required>
+          <label style="font-size: 0.8rem; color: #cbd5e1; display: block; margin-bottom: 0.3rem;">Gleba /
+            Propriedade:</label>
+          <input type="text" id="prof-gleba" class="clean-input-capsule modal-profile-input"
+            style="width: 100%; border-radius: var(--radius-sm); color: #ffffff; background: var(--bg-page);"
+            value="Sítio Bela Vista" required>
         </div>
         <div>
-          <label style="font-size: 0.8rem; color: #cbd5e1; display: block; margin-bottom: 0.3rem;">Município - Estado:</label>
-          <input type="text" id="prof-municipio" class="clean-input-capsule modal-profile-input" style="width: 100%; border-radius: var(--radius-sm); color: #ffffff; background: var(--bg-page);" value="Rio Verde - GO" required>
+          <label style="font-size: 0.8rem; color: #cbd5e1; display: block; margin-bottom: 0.3rem;">Município -
+            Estado:</label>
+          <input type="text" id="prof-municipio" class="clean-input-capsule modal-profile-input"
+            style="width: 100%; border-radius: var(--radius-sm); color: #ffffff; background: var(--bg-page);"
+            value="Rio Verde - GO" required>
         </div>
         <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem;">
           <button type="button" class="btn-clean" id="btn-cancel-profile">Cancelar</button>
-          <button type="submit" class="btn-clean" style="background: var(--emerald-primary); color: white; border-color: var(--emerald-primary);">Salvar</button>
+          <button type="submit" class="btn-clean"
+            style="background: var(--emerald-primary); color: white; border-color: var(--emerald-primary);">Salvar</button>
         </div>
       </form>
     </div>
@@ -437,4 +561,5 @@
   <script src="scripts/copilot-ai.js"></script>
   <script src="scripts/app.js"></script>
 </body>
+
 </html>

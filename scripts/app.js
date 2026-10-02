@@ -36,9 +36,20 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnOpenEditProfile = document.getElementById("btn-open-edit-profile");
   const btnReopenOnboarding = document.getElementById("btn-reopen-onboarding");
 
+  // Histórico de Conversas (Estilo ChatGPT)
+  const historyBackdrop = document.getElementById("history-backdrop");
+  const historyPanel = document.getElementById("history-panel");
+  const btnOpenHistory = document.getElementById("btn-open-history");
+  const btnCloseHistory = document.getElementById("btn-close-history");
+  const btnNewChat = document.getElementById("btn-new-chat");
+  const historyChatList = document.getElementById("history-chat-list");
+  const btnClearAllChats = document.getElementById("btn-clear-all-chats");
+  const historyFarmerName = document.getElementById("history-farmer-name");
+
   // Onboarding Inicial
   const onboardingScreen = document.getElementById("onboarding-screen");
   const onboardingForm = document.getElementById("onboarding-form");
+  const btnSubmitOnboarding = document.getElementById("btn-submit-onboarding");
   const onbNome = document.getElementById("onb-nome");
   const onbTelefone = document.getElementById("onb-telefone");
   const onbGleba = document.getElementById("onb-gleba");
@@ -125,21 +136,23 @@ document.addEventListener("DOMContentLoaded", () => {
   // 3. Atualizar Dados do Produtor
   // ==========================================================================
   function updateFarmerContextUI() {
+    if (typeof AGRO_DATA === "undefined" || !AGRO_DATA.currentProfile) return;
     const p = AGRO_DATA.currentProfile;
-    const c = AGRO_DATA.culturas[p.culturaAtual] || AGRO_DATA.culturas.soja;
+    const c = (AGRO_DATA.culturas && AGRO_DATA.culturas[p.culturaAtual]) || (AGRO_DATA.culturas && AGRO_DATA.culturas.soja) || { nome: "Soja", icone: "🌱" };
 
-    const parts = p.nome.trim().split(/\s+/);
-    let shortName = parts[0];
+    const rawNome = (p.nome || "Produtor").trim();
+    const parts = rawNome.split(/\s+/);
+    let shortName = parts[0] || "Produtor";
     if ((parts[0].toLowerCase() === "seu" || parts[0].toLowerCase() === "dona" || parts[0].toLowerCase() === "sr." || parts[0].toLowerCase() === "sra.") && parts[1]) {
       shortName = `${parts[0]} ${parts[1]}`;
     }
 
     if (navFarmerName) navFarmerName.textContent = shortName;
     if (navFarmerCulture) navFarmerCulture.textContent = `${c.nome.split(" ")[0]} V4`;
-    if (navFarmerCity) navFarmerCity.textContent = p.municipio.split(" - ")[0];
+    if (navFarmerCity) navFarmerCity.textContent = (p.municipio || "Rio Verde").split(" - ")[0];
 
-    if (drawerFarmName) drawerFarmName.textContent = p.propriedade;
-    if (drawerFarmMeta) drawerFarmMeta.textContent = `${p.municipio} • ${p.areaHa} ha`;
+    if (drawerFarmName) drawerFarmName.textContent = p.propriedade || "Sítio Bela Vista";
+    if (drawerFarmMeta) drawerFarmMeta.textContent = `${p.municipio || "Rio Verde - GO"} • ${p.areaHa || 14.5} ha`;
 
     const soilDesc = p.tipoSolo === "AD1" 
       ? "AD1 (Arenoso CAD < 35mm)" 
@@ -155,7 +168,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // ==========================================================================
   // 4. Mensagens e Conversação no Chat
   // ==========================================================================
-  function appendMessage(sender, text, meta = null) {
+  function appendMessage(sender, text, meta = null, save = true) {
     const row = document.createElement("div");
     row.className = `msg-row ${sender === "farmer" ? "user" : "ai"}`;
 
@@ -193,12 +206,12 @@ document.addEventListener("DOMContentLoaded", () => {
         content += `
           <div class="clean-explain-card">
             <div class="explain-summary" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'">
-              <span>💡 Por que alertei você • ${meta.confianca}% Confiança</span>
+              <span>💡 Por que alertei você • ${meta.confianca || 95}% Confiança</span>
               <span style="font-size: 0.65rem;">▾</span>
             </div>
             <div class="explain-details" style="display: none;">
-              ${meta.porQue}
-              <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.25rem;">Fonte: ${meta.fonte}</div>
+              ${meta.porQue || ""}
+              <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.25rem;">Fonte: ${meta.fonte || "Embrapa & ZARC / MAPA"}</div>
             </div>
           </div>
         `;
@@ -207,8 +220,8 @@ document.addEventListener("DOMContentLoaded", () => {
       if (meta && meta.acaoSugerida) {
         content += `
           <div>
-            <button class="btn-msg-action" data-action="${meta.acaoSugerida}">
-              <span>✓</span> ${meta.acaoSugerida}
+            <button class="btn-msg-action" data-action="${escapeAttr(meta.acaoSugerida)}">
+              <span>✓</span> ${escapeHTML(meta.acaoSugerida)}
             </button>
           </div>
         `;
@@ -243,6 +256,20 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
     });
+
+    // Salva no chat ativo caso save === true
+    if (save && typeof getActiveChat === "function") {
+      const activeChat = getActiveChat();
+      if (activeChat) {
+        if (!activeChat.messages) activeChat.messages = [];
+        activeChat.messages.push({ sender, text, meta });
+        if (sender === "farmer" && (activeChat.title === "Nova Conversa" || activeChat.title.startsWith("Nova Conversa"))) {
+          activeChat.title = text.length > 28 ? text.substring(0, 28) + "..." : text;
+        }
+        saveChatsToStorage();
+        renderHistoryList();
+      }
+    }
   }
 
   function escapeHTML(str) {
@@ -591,9 +618,11 @@ document.addEventListener("DOMContentLoaded", () => {
   // 10. Atualização Dinâmica da Mensagem de Boas-Vindas
   // ==========================================================================
   function updateWelcomeMessage(profile) {
-    const cultura = AGRO_DATA.culturas[profile.culturaAtual] || AGRO_DATA.culturas.soja;
-    const parts = profile.nome.trim().split(/\s+/);
-    let shortName = parts[0];
+    if (typeof AGRO_DATA === "undefined" || !AGRO_DATA.culturas) return;
+    const cultura = AGRO_DATA.culturas[profile.culturaAtual] || AGRO_DATA.culturas.soja || { nome: "Soja (Grão)" };
+    const rawNome = (profile.nome || "Produtor").trim();
+    const parts = rawNome.split(/\s+/);
+    let shortName = parts[0] || "Produtor";
     if ((parts[0].toLowerCase() === "seu" || parts[0].toLowerCase() === "dona" || parts[0].toLowerCase() === "sr." || parts[0].toLowerCase() === "sra.") && parts[1]) {
       shortName = `${parts[0]} ${parts[1]}`;
     }
@@ -656,8 +685,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (onbTelefone) onbTelefone.value = profile.telefone || "";
     if (onbGleba) onbGleba.value = profile.propriedade || "";
     if (onbMunicipio) onbMunicipio.value = profile.municipio || "";
-    if (onbCultura && profile.culturaAtual) onbCultura.value = profile.culturaAtual;
-    if (onbSolo && profile.tipoSolo) onbSolo.value = profile.tipoSolo;
+    if (onbCultura) onbCultura.value = profile.culturaAtual || "";
+    if (onbSolo) onbSolo.value = profile.tipoSolo || "";
     if (onbArea) onbArea.value = profile.areaHa || "";
   }
 
@@ -667,12 +696,119 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         const parsed = JSON.parse(saved);
         AGRO_DATA.currentProfile = { ...AGRO_DATA.currentProfile, ...parsed };
-        populateOnboardingForm(AGRO_DATA.currentProfile);
       } catch (e) {
         console.warn("Erro ao ler perfil salvo:", e);
       }
-    } else {
-      // Deixar os campos limpos para a apresentação / primeiro preenchimento
+    }
+    // Na tela de boas-vindas todos os campos devem sempre iniciar 100% vazios para o produtor preencher
+    populateOnboardingForm({
+      nome: "",
+      telefone: "",
+      propriedade: "",
+      municipio: "",
+      culturaAtual: "",
+      tipoSolo: "",
+      areaHa: ""
+    });
+  }
+
+  // Submissão do Formulário de Onboarding
+  function handleOnboardingSubmit(e) {
+    if (e) {
+      if (typeof e.preventDefault === "function") e.preventDefault();
+      if (typeof e.stopPropagation === "function") e.stopPropagation();
+    }
+
+    const rawNome = onbNome ? onbNome.value.trim() : "";
+    const rawTelefone = onbTelefone ? onbTelefone.value.trim() : "";
+    const rawGleba = onbGleba ? onbGleba.value.trim() : "";
+    const rawMunicipio = onbMunicipio ? onbMunicipio.value.trim() : "";
+    const rawCultura = (onbCultura && onbCultura.value) ? onbCultura.value : "";
+    const rawSolo = (onbSolo && onbSolo.value) ? onbSolo.value : "";
+    const rawArea = onbArea ? parseFloat(onbArea.value) : NaN;
+
+    const current = (typeof AGRO_DATA !== "undefined" && AGRO_DATA.currentProfile) ? AGRO_DATA.currentProfile : {};
+
+    const newProfile = {
+      nome: rawNome || current.nome || "Seu Sebastião",
+      telefone: rawTelefone || current.telefone || "(64) 99821-4472",
+      propriedade: rawGleba || current.propriedade || "Sítio Bela Vista",
+      municipio: rawMunicipio || current.municipio || "Rio Verde - GO",
+      culturaAtual: rawCultura || current.culturaAtual || "soja",
+      tipoSolo: rawSolo || current.tipoSolo || "AD3",
+      areaHa: (!isNaN(rawArea) && rawArea > 0) ? rawArea : (current.areaHa || 14.5),
+      faseCiclo: current.faseCiclo || "vegetativo",
+      proagroAtivo: true,
+      pronafElegivel: true
+    };
+
+    if (typeof AGRO_DATA !== "undefined") {
+      AGRO_DATA.currentProfile = { ...current, ...newProfile };
+    }
+
+    try {
+      localStorage.setItem("agropilot_profile", JSON.stringify(newProfile));
+      localStorage.setItem("agropilot_configured", "true");
+    } catch (err) {
+      console.warn("Erro ao salvar perfil no localStorage:", err);
+    }
+
+    if (window.agroCopilot && typeof window.agroCopilot.setFarmerProfile === "function") {
+      window.agroCopilot.setFarmerProfile(newProfile);
+    }
+
+    try {
+      updateFarmerContextUI();
+    } catch (err) {
+      console.warn("Erro ao atualizar contexto:", err);
+    }
+
+    try {
+      updateWelcomeMessage(newProfile);
+    } catch (err) {
+      console.warn("Erro ao atualizar boas-vindas:", err);
+    }
+
+    // Fecha a tela de onboarding com classe e estilos imediatos
+    if (onboardingScreen) {
+      onboardingScreen.classList.add("hidden");
+      onboardingScreen.style.display = "none";
+      onboardingScreen.style.visibility = "hidden";
+      onboardingScreen.style.opacity = "0";
+      onboardingScreen.style.pointerEvents = "none";
+      onboardingScreen.setAttribute("aria-hidden", "true");
+    }
+
+    const parts = (newProfile.nome || "Produtor").split(/\s+/);
+    const shortName = ((parts[0].toLowerCase() === "seu" || parts[0].toLowerCase() === "dona" || parts[0].toLowerCase() === "sr." || parts[0].toLowerCase() === "sra.") && parts[1]) 
+      ? `${parts[0]} ${parts[1]}` 
+      : parts[0];
+
+    if (historyFarmerName) {
+      historyFarmerName.textContent = shortName;
+    }
+
+    // Se o chat ativo tiver boas-vindas, re-renderiza para refletir o novo produtor
+    if (typeof renderActiveChat === "function") {
+      renderActiveChat();
+    }
+
+    showCleanToast(`Propriedade configurada! Bem-vindo, ${shortName}!`);
+    playCleanBeep("info");
+  }
+
+  if (onboardingForm) {
+    onboardingForm.addEventListener("submit", handleOnboardingSubmit);
+  }
+  if (btnSubmitOnboarding) {
+    btnSubmitOnboarding.addEventListener("click", handleOnboardingSubmit);
+  }
+
+  // Botão na gaveta para reabrir tela de onboarding
+  if (btnReopenOnboarding) {
+    btnReopenOnboarding.addEventListener("click", () => {
+      closeDrawer();
+      // Sempre limpa os campos ao reabrir a tela de cadastro para preenchimento limpo
       populateOnboardingForm({
         nome: "",
         telefone: "",
@@ -682,76 +818,367 @@ document.addEventListener("DOMContentLoaded", () => {
         tipoSolo: "",
         areaHa: ""
       });
-    }
-  }
-
-  // Submissão do Formulário de Onboarding
-  if (onboardingForm) {
-    onboardingForm.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const newProfile = {
-        nome: onbNome.value.trim(),
-        telefone: onbTelefone.value.trim(),
-        propriedade: onbGleba.value.trim(),
-        municipio: onbMunicipio.value.trim(),
-        culturaAtual: onbCultura.value,
-        tipoSolo: onbSolo.value,
-        areaHa: parseFloat(onbArea.value) || 14.5,
-        faseCiclo: "vegetativo",
-        proagroAtivo: true,
-        pronafElegivel: true
-      };
-
-      AGRO_DATA.currentProfile = { ...AGRO_DATA.currentProfile, ...newProfile };
-      localStorage.setItem("agropilot_profile", JSON.stringify(AGRO_DATA.currentProfile));
-      localStorage.setItem("agropilot_configured", "true");
-
-      if (window.agroCopilot) {
-        window.agroCopilot.setFarmerProfile(AGRO_DATA.currentProfile);
-      }
-
-      updateFarmerContextUI();
-      updateWelcomeMessage(AGRO_DATA.currentProfile);
-
       if (onboardingScreen) {
-        onboardingScreen.classList.add("hidden");
-      }
-
-      const parts = newProfile.nome.split(/\s+/);
-      const shortName = ((parts[0].toLowerCase() === "seu" || parts[0].toLowerCase() === "dona" || parts[0].toLowerCase() === "sr." || parts[0].toLowerCase() === "sra.") && parts[1]) 
-        ? `${parts[0]} ${parts[1]}` 
-        : parts[0];
-
-      showCleanToast(`Propriedade configurada! Bem-vindo, ${shortName}!`);
-      playCleanBeep("info");
-    });
-  }
-
-  // Botão na gaveta para reabrir tela de onboarding
-  if (btnReopenOnboarding) {
-    btnReopenOnboarding.addEventListener("click", () => {
-      closeDrawer();
-      populateOnboardingForm(AGRO_DATA.currentProfile);
-      if (onboardingScreen) {
+        onboardingScreen.style.display = "flex";
+        onboardingScreen.style.visibility = "visible";
+        onboardingScreen.style.opacity = "1";
+        onboardingScreen.style.pointerEvents = "auto";
+        onboardingScreen.removeAttribute("aria-hidden");
         onboardingScreen.classList.remove("hidden");
       }
     });
   }
 
   // ==========================================================================
-  // 12. Inicialização do App
+  // 12. Histórico de Conversas (Estilo ChatGPT)
+  // ==========================================================================
+  const STORAGE_CHATS_KEY = "agropilot_chat_history";
+  const STORAGE_ACTIVE_CHAT_KEY = "agropilot_active_chat_id";
+
+  const DEFAULT_CHATS = [
+    {
+      id: "chat-default-1",
+      title: "⛈️ Alerta de Chuva 75mm",
+      timestamp: Date.now(),
+      messages: [
+        { type: "raw" }
+      ]
+    },
+    {
+      id: "chat-default-2",
+      title: "🌾 Consulta Janela ZARC Soja",
+      timestamp: Date.now() - 3600000 * 18,
+      messages: [
+        { sender: "farmer", text: "Posso plantar semana que vem?" },
+        {
+          sender: "ai",
+          text: "Sim! Consultando o **ZARC oficial** para sua região no solo AD3:\n\n✅ Estamos no decêndio **Out/D3 a Nov/D2**, onde o risco climático é de apenas **20%** (Classe I - Risco Mínimo).\n🛡️ Plantando nesta janela, sua lavoura tem **cobertura garantida de 100%** do seguro Proagro.\n⚠️ Cuidado Crítico: Não atrase além de 25 de Novembro para não perder a garantia.",
+          meta: {
+            audioText: "Pode plantar sim! O ZARC indica risco de vinte por cento nesta semana com cobertura total do Proagro.",
+            fonte: "Portaria ZARC MAPA vigente para Rio Verde/GO",
+            porQue: "ISNA hídrico superior a 0.65 e boa umidade no solo argiloso.",
+            confianca: 96
+          }
+        }
+      ]
+    },
+    {
+      id: "chat-default-3",
+      title: "💰 Cotação da Saca e Proagro",
+      timestamp: Date.now() - 3600000 * 42,
+      messages: [
+        { sender: "farmer", text: "Qual o preço da saca hoje e onde vender?" },
+        {
+          sender: "ai",
+          text: "A saca de 60kg de soja está cotada hoje em **R$ 128,50** no mercado físico de Rio Verde (Cepea/Esalq).\n\n💡 **Oportunidade para Familiar:** O edital do PNAE/PAA da cooperativa local está pagando **R$ 138,00/saca** (+7,3% sobre a média) para lotes da agricultura familiar com CAF/DAP ativa.",
+          meta: {
+            audioText: "A saca de soja tá em cento e vinte e oito reais no Cepea, mas a prefeitura paga cento e trinta e oito no PNAE para quem tem Pronaf.",
+            fonte: "Cepea/Esalq & Painel PNAE 2026",
+            porQue: "Preços monitorados em tempo real com ágio para produtor Pronaf.",
+            confianca: 98
+          }
+        }
+      ]
+    }
+  ];
+
+  let chats = [];
+  let activeChatId = null;
+
+  function loadChatsFromStorage() {
+    try {
+      const saved = localStorage.getItem(STORAGE_CHATS_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          chats = parsed;
+        } else {
+          chats = JSON.parse(JSON.stringify(DEFAULT_CHATS));
+        }
+      } else {
+        chats = JSON.parse(JSON.stringify(DEFAULT_CHATS));
+      }
+    } catch (e) {
+      console.warn("Erro ao ler histórico de chats:", e);
+      chats = JSON.parse(JSON.stringify(DEFAULT_CHATS));
+    }
+
+    const savedActive = localStorage.getItem(STORAGE_ACTIVE_CHAT_KEY);
+    if (savedActive && chats.some(c => c.id === savedActive)) {
+      activeChatId = savedActive;
+    } else if (chats.length > 0) {
+      activeChatId = chats[0].id;
+    }
+  }
+
+  function saveChatsToStorage() {
+    try {
+      localStorage.setItem(STORAGE_CHATS_KEY, JSON.stringify(chats));
+      if (activeChatId) {
+        localStorage.setItem(STORAGE_ACTIVE_CHAT_KEY, activeChatId);
+      }
+    } catch (e) {
+      console.warn("Erro ao salvar histórico de chats:", e);
+    }
+  }
+
+  function getActiveChat() {
+    return chats.find(c => c.id === activeChatId) || null;
+  }
+
+  function renderActiveChat() {
+    if (!chatMessagesStream) return;
+    chatMessagesStream.innerHTML = "";
+
+    const chat = getActiveChat();
+    if (!chat) return;
+
+    if (!chat.messages || chat.messages.length === 0) {
+      chat.messages = [{ type: "raw" }];
+    }
+
+    chat.messages.forEach(msg => {
+      if (msg.type === "raw") {
+        const row = document.createElement("div");
+        row.className = "msg-row ai";
+        const profile = (typeof AGRO_DATA !== "undefined" && AGRO_DATA.currentProfile) ? AGRO_DATA.currentProfile : {};
+        const pNome = profile.nome || "Seu Sebastião";
+        const parts = pNome.trim().split(/\s+/);
+        const shortName = ((parts[0].toLowerCase() === "seu" || parts[0].toLowerCase() === "dona" || parts[0].toLowerCase() === "sr." || parts[0].toLowerCase() === "sra.") && parts[1])
+          ? `${parts[0]} ${parts[1]}`
+          : parts[0];
+        const cultura = (typeof AGRO_DATA !== "undefined" && AGRO_DATA.culturas && AGRO_DATA.culturas[profile.culturaAtual]) || { nome: "Soja (Grão)" };
+        const solo = profile.tipoSolo || "AD3";
+        const cid = profile.municipio || "Rio Verde - GO";
+
+        row.innerHTML = `
+          <div class="msg-bubble">
+            <p>Olá, <strong>${escapeHTML(shortName)}</strong>! Sou o seu <strong>AgroPilot 24/7</strong>.</p>
+            <p style="margin-top: 0.4rem;">
+              Estou monitorando sua lavoura de <strong>${escapeHTML(cultura.nome)} no solo ${escapeHTML(solo)}</strong> em ${escapeHTML(cid)}. Como no pequeno produtor <strong>não há margem para errar</strong>, estou de olho no tempo, no ZARC e nas pragas dia e noite.
+            </p>
+            <p style="margin-top: 0.4rem; color: var(--amber);">
+              🌧️ <strong>Aviso de Hoje:</strong> Previsão de <strong>chuva forte (75mm)</strong> nas próximas 48h. Evite pulverizar defensivo hoje para não perder o produto e confira as saídas das curvas de nível.
+            </p>
+
+            <!-- Voice Note (WhatsApp style) -->
+            <div class="clean-voice-bar">
+              <button class="btn-play-clean" data-audio="Olá ${escapeAttr(shortName)}! Previsão de chuva forte de 75 milímetros em ${escapeAttr(cid)} nas próximas 48 horas. Não pulverize nada hoje pra não perder veneno e confira as curvas de nível no talhão." title="Ouvir áudio">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              </button>
+              <div class="voice-wave">
+                <span class="wave-line" style="height: 6px;"></span>
+                <span class="wave-line" style="height: 12px;"></span>
+                <span class="wave-line" style="height: 16px;"></span>
+                <span class="wave-line" style="height: 8px;"></span>
+                <span class="wave-line" style="height: 14px;"></span>
+                <span class="wave-line" style="height: 10px;"></span>
+              </div>
+              <span style="font-size: 0.72rem; color: var(--text-secondary);">0:14 • Áudio do Copiloto</span>
+            </div>
+
+            <!-- Clean Explainability Tag -->
+            <div class="clean-explain-card">
+              <div class="explain-summary" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'">
+                <span>💡 Por que alertei você • 95% Confiança</span>
+                <span style="font-size: 0.65rem;">▾</span>
+              </div>
+              <div class="explain-details" style="display: none;">
+                Frente polar no radar CPTEC com saturação rápida do solo argiloso ${escapeHTML(solo)}. Fonte: INMET & ZARC MAPA Portaria 142/2024.
+              </div>
+            </div>
+
+            <div class="msg-timestamp">Hoje • ✓✓</div>
+          </div>
+        `;
+        chatMessagesStream.appendChild(row);
+
+        const playBtn = row.querySelector(".btn-play-clean");
+        if (playBtn) {
+          playBtn.addEventListener("click", () => {
+            speakText(playBtn.getAttribute("data-audio"));
+          });
+        }
+      } else {
+        appendMessage(msg.sender, msg.text, msg.meta, false);
+      }
+    });
+
+    chatMessagesStream.scrollTop = chatMessagesStream.scrollHeight;
+  }
+
+  function renderHistoryList() {
+    if (!historyChatList) return;
+    historyChatList.innerHTML = "";
+
+    if (chats.length === 0) {
+      historyChatList.innerHTML = `
+        <div style="font-size: 0.8rem; color: var(--text-muted); padding: 0.75rem 0.5rem; text-align: center;">
+          Nenhuma conversa ainda. Clique em "Novo Chat" acima.
+        </div>
+      `;
+      return;
+    }
+
+    chats.forEach(chat => {
+      const item = document.createElement("div");
+      item.className = `history-chat-item ${chat.id === activeChatId ? "active" : ""}`;
+      item.setAttribute("data-chat-id", chat.id);
+
+      item.innerHTML = `
+        <div class="history-chat-content">
+          <span class="history-chat-icon">💬</span>
+          <span class="history-chat-title" title="${escapeAttr(chat.title)}">${escapeHTML(chat.title)}</span>
+        </div>
+        <div class="history-chat-actions">
+          <button class="btn-history-action btn-delete-chat" data-chat-id="${escapeAttr(chat.id)}" title="Excluir conversa">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
+        </div>
+      `;
+
+      item.addEventListener("click", (e) => {
+        if (e.target.closest(".btn-delete-chat")) return;
+        switchToChat(chat.id);
+      });
+
+      const delBtn = item.querySelector(".btn-delete-chat");
+      if (delBtn) {
+        delBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          deleteChat(chat.id);
+        });
+      }
+
+      historyChatList.appendChild(item);
+    });
+
+    if (historyFarmerName) {
+      const p = (typeof AGRO_DATA !== "undefined" && AGRO_DATA.currentProfile) ? AGRO_DATA.currentProfile : {};
+      const parts = (p.nome || "Seu Sebastião").trim().split(/\s+/);
+      const shortName = ((parts[0].toLowerCase() === "seu" || parts[0].toLowerCase() === "dona" || parts[0].toLowerCase() === "sr." || parts[0].toLowerCase() === "sra.") && parts[1])
+        ? `${parts[0]} ${parts[1]}`
+        : parts[0];
+      historyFarmerName.textContent = shortName;
+    }
+  }
+
+  function switchToChat(chatId) {
+    activeChatId = chatId;
+    saveChatsToStorage();
+    renderActiveChat();
+    renderHistoryList();
+
+    // Em telas mobile e tablet (<= 768px), fecha a gaveta para dar foco ao chat
+    if (window.innerWidth <= 768) {
+      closeHistoryDrawer();
+    }
+  }
+
+  function startNewChat() {
+    const newId = "chat-" + Date.now();
+    const newChat = {
+      id: newId,
+      title: "Nova Conversa",
+      timestamp: Date.now(),
+      messages: [
+        { type: "raw" }
+      ]
+    };
+    chats.unshift(newChat);
+    saveChatsToStorage();
+    activeChatId = newId;
+    renderActiveChat();
+    renderHistoryList();
+
+    closeHistoryDrawer();
+    showCleanToast("Novo chat iniciado!");
+    playCleanBeep("info");
+
+    if (cleanInputField) {
+      setTimeout(() => cleanInputField.focus(), 200);
+    }
+  }
+
+  function deleteChat(chatId) {
+    chats = chats.filter(c => c.id !== chatId);
+    if (chats.length === 0) {
+      chats = [{
+        id: "chat-" + Date.now(),
+        title: "Nova Conversa",
+        timestamp: Date.now(),
+        messages: [{ type: "raw" }]
+      }];
+    }
+    if (activeChatId === chatId) {
+      activeChatId = chats[0].id;
+      renderActiveChat();
+    }
+    saveChatsToStorage();
+    renderHistoryList();
+    showCleanToast("Conversa excluída.");
+  }
+
+  function clearAllChats() {
+    if (confirm("Tem certeza que deseja apagar todo o histórico de conversas?")) {
+      chats = [{
+        id: "chat-" + Date.now(),
+        title: "Nova Conversa",
+        timestamp: Date.now(),
+        messages: [{ type: "raw" }]
+      }];
+      activeChatId = chats[0].id;
+      saveChatsToStorage();
+      renderActiveChat();
+      renderHistoryList();
+      showCleanToast("Histórico limpo!");
+      closeHistoryDrawer();
+    }
+  }
+
+  function openHistoryDrawer() {
+    if (historyBackdrop) {
+      historyBackdrop.style.display = "flex";
+      renderHistoryList();
+    }
+  }
+
+  function closeHistoryDrawer() {
+    if (historyBackdrop) {
+      historyBackdrop.style.display = "none";
+    }
+  }
+
+  if (btnOpenHistory) {
+    btnOpenHistory.addEventListener("click", openHistoryDrawer);
+  }
+  if (btnCloseHistory) {
+    btnCloseHistory.addEventListener("click", closeHistoryDrawer);
+  }
+  if (historyBackdrop) {
+    historyBackdrop.addEventListener("click", (e) => {
+      if (e.target === historyBackdrop) closeHistoryDrawer();
+    });
+  }
+  if (btnNewChat) {
+    btnNewChat.addEventListener("click", startNewChat);
+  }
+  if (btnClearAllChats) {
+    btnClearAllChats.addEventListener("click", clearAllChats);
+  }
+
+  // ==========================================================================
+  // 13. Inicialização do App
   // ==========================================================================
   loadStoredProfile();
   updateFarmerContextUI();
   updateWelcomeMessage(AGRO_DATA.currentProfile);
-
-  // Conectar botões de áudio iniciais
-  document.querySelectorAll(".btn-play-clean").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const audioMsg = btn.getAttribute("data-audio");
-      speakText(audioMsg);
-    });
-  });
+  loadChatsFromStorage();
+  renderActiveChat();
+  renderHistoryList();
 
   console.log("🌾 AgroPilot Clean Chatbot ativo.");
 });
