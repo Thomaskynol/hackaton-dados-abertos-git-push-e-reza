@@ -1,0 +1,19 @@
+Agrofit	Sistema de acesso às informações de agrotóxicos e afins com fins agrícolas registrados em nível federal — produto, cultura-alvo, praga-alvo, classe toxicológica.	CSV
+Zarc — Tábua de Risco	Períodos de plantio constantes nas Portarias de Zoneamento Agrícola de Risco Climático, por cultura, município e tipo de solo.	PDFCSV
+Zarc — Cultivares em manutenção	Cultivares indicadas para plantio em cada zona do Zarc.	CSV
+SIPEAGRO	Registro e cadastro de estabelecimentos e produtos agropecuários: pedidos de registro, solicitações de alteração e dados cadastrais.	CSVPDF
+SIGEF	Produção de sementes no Brasil: inscrições de campos de produção e declarações de área para produção de sementes.	CSVPDF
+PGA / SIGSIF	Mapas de condenação de carcaças de animais e relação de estabelecimentos registrados no Serviço de Inspeção Federal.	CSVPDF
+Controle social (venda direta)	Organizações de Controle Social cadastradas no SigOrgWeb para venda direta de produtos orgânicos, por Superintendência Federal de Agricultura.	HTML
+OAC	Organismos de Avaliação da Conformidade Orgânica credenciados ao MAPA: certificadoras por auditoria e sistemas participativos de garantia.	PDF
+Produtores Orgânicos	Relação de produtores orgânicos de todo o Brasil e de países que exportam produtos orgânicos para o Brasil.	PDF
+SISSER	Operacionalização do Programa de Subvenção ao Seguro Rural: troca de informações entre MAPA e seguradoras habilitadas.	PDFCSVXLSX
+Agenda de Autoridades	Conjunto legado, sem descrição publicada pelo MAPA.	CSV
+Thesagro	Único thesaurus brasileiro especializado em literatura agrícola, usado para indexação e recuperação de documentos (diretrizes UNESCO).	XML
+Base de Conhecimento BINAGRI	Informações e orientações sobre assuntos de agropecuária de interesse da sociedade brasileira.	XLSX
+
+Pivôs Centrais — Pivôs Mapeados	Geolocalização de cada pivô central de irrigação identificado no Brasil entre 1985 e 2019, por município/estado/região hidrográfica (ANA + Embrapa Milho e Sorgo).	CSVGEOJSONKMLZIP
+Pivôs Centrais — Área por Município	Mesmo levantamento acima, agregado por área irrigada e número de equipamentos por município.	CSVGEOJSONKML
+Atlas de Irrigação 2021	Área irrigada atual e potencial, tipologia de irrigação, por município e UF — panorama nacional da agricultura irrigada.	CSVGEOJSON
+Arroz Irrigado 3 recortes	Mapeamento do arroz irrigado no Brasil — por região, por município e áreas mapeadas (geoprocessamento + sensoriamento remoto).	CSVGEOJSONKML
+Cana-de-Açúcar Irrigada e Fertirrigada 3 recortes	Levantamento de áreas irrigadas e fertirrigadas de cana-de-açúcar: fertirrigação, irrigação plena/por déficit, irrigação de salvamento.	CSVGEOJSONKML
