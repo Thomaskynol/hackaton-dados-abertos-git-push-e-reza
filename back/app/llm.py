@@ -9,7 +9,7 @@ import os
 
 import httpx
 
-MODEL = "xiaomi/mimo-v2-flash"
+MODEL = "xiaomi/mimo-v2.6-flash"
 URL = "https://openrouter.ai/api/v1/chat/completions"
 TIMEOUT_S = 15
 

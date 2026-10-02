@@ -6,7 +6,7 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
-    # ponytail: sem auth no dev local; backend/front entram aqui no merge
+    # ponytail: no auth in local dev; backend/front join here
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
       interval: 10s
@@ -24,7 +24,7 @@ services:
     environment:
       - MONGO_URL=mongodb://mongo:27017
       - CORS_ORIGINS=*
-      # Ex.: OPENROUTER_API_KEY=sk-or-v1-... (nunca commitar a chave real)
+      # E.g.: OPENROUTER_API_KEY=sk-or-v1-... (never commit the real key)
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
     # ponytail: install deps at start; without this uvicorn exits and only mongo stays up
     command: sh -c "pip install --no-cache-dir -r requirements.txt && uvicorn app.main:app --host 0.0.0.0 --port 8000"
