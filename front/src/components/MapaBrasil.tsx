@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
-import { ZoomIn, ZoomOut, Maximize, ArrowLeft, Loader2, Search, MapPin } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize, Minimize, ArrowLeft, Loader2, Search, MapPin, Crosshair } from "lucide-react";
 import { UFS, infoDaUF } from "@/lib/mapa-local";
 import { CONTORNOS_UF } from "@/lib/brasil-uf";
 import type { MalhaMunicipios } from "@/lib/geo-tipos";
@@ -203,6 +203,7 @@ export function MapaBrasil({ selecionada, aoSelecionar, municipioIbge, aoSelecio
   const tituloId = useId();
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [expandido, setExpandido] = useState(false);
   const [nivel, setNivel] = useState<Nivel>({ tipo: "brasil" });
   const [malha, setMalha] = useState<MalhaMunicipios | null>(null);
   const [carregandoMun, setCarregandoMun] = useState(false);
@@ -219,6 +220,16 @@ export function MapaBrasil({ selecionada, aoSelecionar, municipioIbge, aoSelecio
   const pinca = useRef<{ dist: number; zoom: number } | null>(null);
 
   const emUF = nivel.tipo === "uf" ? nivel.uf : null;
+
+  // Fecha fullscreen com Esc
+  useEffect(() => {
+    if (!expandido) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setExpandido(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [expandido]);
 
   // zoomRef acompanha o zoom para os handlers de gesto (pinça/wheel) lerem o
   // valor atual sem recriar os callbacks.
@@ -286,6 +297,8 @@ export function MapaBrasil({ selecionada, aoSelecionar, municipioIbge, aoSelecio
     setZoom(1);
     moverPan(0, 0);
   }, [moverPan]);
+
+  const alternarTelaCheiaFn = useCallback(() => setExpandido((v) => !v), []);
 
   const paths = useMemo(() => {
     const m = new Map<string, string>();
@@ -437,8 +450,14 @@ export function MapaBrasil({ selecionada, aoSelecionar, municipioIbge, aoSelecio
     setHoverMun((h) => (ibge === null ? null : h === ibge ? null : h));
   }, []);
 
-  return (
-    <div className="overflow-hidden rounded-xl2 border border-line bg-surface shadow-card">
+  const conteudoMapa = (
+    <div
+      className={`flex flex-col ${
+        expandido
+          ? "fixed inset-0 z-50 bg-surface shadow-2xl"
+          : "overflow-hidden rounded-xl2 border border-line bg-surface shadow-card"
+      }`}
+    >
       <div className="flex items-center justify-between gap-2 border-b border-line px-3 py-2">
         <div className="flex min-w-0 items-center gap-2">
           {emUF ? (
@@ -498,7 +517,14 @@ export function MapaBrasil({ selecionada, aoSelecionar, municipioIbge, aoSelecio
           </button>
           <button onClick={recentrar} aria-label="Recentralizar mapa"
             className="grid h-[44px] w-[44px] place-items-center rounded-full text-muted hover:bg-canvas hover:text-ink">
-            <Maximize size={18} />
+            <Crosshair size={18} />
+          </button>
+          <button
+            onClick={alternarTelaCheiaFn}
+            aria-label={expandido ? "Fechar tela cheia" : "Expandir mapa em tela cheia"}
+            className="grid h-[44px] w-[44px] place-items-center rounded-full text-muted hover:bg-canvas hover:text-ink"
+          >
+            {expandido ? <Minimize size={18} /> : <Maximize size={18} />}
           </button>
         </div>
       </div>
@@ -802,6 +828,20 @@ export function MapaBrasil({ selecionada, aoSelecionar, municipioIbge, aoSelecio
         </span>
       </div>
     </div>
+  );
+
+  return expandido ? (
+    <>
+      {/* Overlay escuro semi-transparente clicável para fechar */}
+      <div
+        className="fixed inset-0 z-40 bg-black/40"
+        aria-hidden
+        onClick={() => setExpandido(false)}
+      />
+      {conteudoMapa}
+    </>
+  ) : (
+    conteudoMapa
   );
 }
 
