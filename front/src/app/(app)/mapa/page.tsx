@@ -10,14 +10,16 @@ import { PainelRegional } from "@/components/PainelRegional";
 import { usePerfil } from "@/lib/perfil-context";
 import { UFS, insightsDaUF, infoDaUF, ufDoPerfil } from "@/lib/mapa-local";
 import { precosDaUF, rotuloCultura } from "@/lib/precos";
-import type { UFSigla } from "@/lib/types";
+import { getRegiao } from "@/lib/api";
+import type { PrecoRef, ResumoRegional, UFSigla } from "@/lib/types";
 
 /** Resumo consultor comercial: preço + piso + canais, sempre honesto. */
-function ConsultorComercial({ uf, culturaId }: { uf: UFSigla; culturaId: string | null }) {
+function ConsultorComercial({ uf, culturaId, precos }: { uf: UFSigla; culturaId: string | null; precos: PrecoRef[] }) {
   const info = infoDaUF(uf);
   const cultura = rotuloCultura(culturaId);
-  const [mercado, pgpm] = precosDaUF(uf, culturaId);
-  const temNumero = mercado.valor != null || pgpm.valor != null;
+  const mercado = precos.find((p) => p.tipo === "conab_mercado");
+  const pgpm = precos.find((p) => p.tipo === "pgpm");
+  const temNumero = (mercado?.valor ?? pgpm?.valor) != null;
   const texto = temNumero
     ? `Cenário comercial de ${cultura} em ${uf}, com fonte e data abaixo.`
     : `Na sua região (${uf}), ${cultura} ainda está sem cotação disponível (CONAB a conectar). O piso PGPM aparece quando confirmado. Nada aqui é ordem de venda.`;
@@ -32,10 +34,59 @@ function ConsultorComercial({ uf, culturaId }: { uf: UFSigla; culturaId: string 
       </div>
       <p className="mt-2 text-[1.02rem] text-ink">{texto}</p>
       <p className="mt-1 text-[0.82rem] text-muted">
-        Fonte: {mercado.fonte.nome} · {mercado.fonte.periodo} · Região: {info?.nome} ({uf})
+        Fonte: {mercado?.fonte.nome ?? "CONAB"} · {mercado?.fonte.periodo ?? mercado?.data ?? "aguardando ingestão"} · Região: {info?.nome} ({uf})
       </p>
     </section>
   );
+}
+
+const ESTADOS_VALIDOS = new Set(["disponivel", "pendente", "sem_dado"]);
+
+/** Normaliza o bruto de GET /api/regiao sobre o fallback local honesto. */
+function normalizarRegiao(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  bruto: any,
+  base: ResumoRegional,
+): ResumoRegional {
+  if (!bruto || typeof bruto !== "object") return base;
+  const b = bruto as Record<string, unknown>;
+  const pega = (obj: unknown, fb: object) =>
+    obj && typeof obj === "object" ? { ...fb, ...(obj as object) } : fb;
+  const comEstado = <T extends { estado: string }>(obj: T, fb: T): T => ({
+    ...obj,
+    estado: ESTADOS_VALIDOS.has(obj.estado) ? obj.estado : fb.estado,
+  });
+  const ufInfo =
+    b["uf"] && typeof b["uf"] === "object"
+      ? { ...base.uf, ...(b["uf"] as object) }
+      : base.uf;
+  return {
+    uf: ufInfo,
+    producao: comEstado(
+      pega(b["producao"], base.producao) as ResumoRegional["producao"],
+      base.producao,
+    ),
+    solo: comEstado(pega(b["solo"], base.solo) as ResumoRegional["solo"], base.solo),
+    seguro: comEstado(
+      pega(b["seguro"], base.seguro) as ResumoRegional["seguro"],
+      base.seguro,
+    ),
+    irrigacao: comEstado(
+      pega(b["irrigacao"], base.irrigacao) as ResumoRegional["irrigacao"],
+      base.irrigacao,
+    ),
+    precos: Array.isArray(b["precos"]) && (b["precos"] as unknown[]).length > 0
+      ? (b["precos"] as ResumoRegional["precos"])
+      : base.precos,
+    canais: comEstado(
+      pega(b["canais"], base.canais) as ResumoRegional["canais"],
+      base.canais,
+    ),
+    oportunidade: comEstado(
+      pega(b["oportunidade"], base.oportunidade) as ResumoRegional["oportunidade"],
+      base.oportunidade,
+    ),
+  };
 }
 
 /** Aba Mapa: Brasil por UF + card de insights regionais por UF. */
@@ -64,11 +115,33 @@ function ConteudoMapa() {
   const selecionada: UFSigla = uf ?? ufPerfil;
   const [municipio, setMunicipio] = useState<{ ibge: string; nome: string } | null>(null);
 
-  const resumo = useMemo(() => {
-    const base = insightsDaUF(selecionada);
-    if (!culturaId) return base;
-    return { ...base, precos: precosDaUF(selecionada, culturaId) };
+  // ibge do mapa ou do perfil (map pick); sem default silencioso além do perfil.
+  const ibge = municipio?.ibge || perfil.cod_ibge || undefined;
+
+  const base = useMemo(() => {
+    const b = insightsDaUF(selecionada);
+    if (!culturaId) return b;
+    return { ...b, precos: precosDaUF(selecionada, culturaId) };
   }, [selecionada, culturaId]);
+
+  const [remoto, setRemoto] = useState<ResumoRegional | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    setRemoto(null);
+    getRegiao(selecionada, ibge, culturaId)
+      .then((bruto) => {
+        if (vivo) setRemoto(normalizarRegiao(bruto, base));
+      })
+      .catch(() => {
+        if (vivo) setRemoto(null); // sem backend: fallback local honesto
+      });
+    return () => {
+      vivo = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selecionada, ibge, culturaId]);
+
+  const resumo = remoto ?? base;
 
   if (!carregado) return null;
 
@@ -92,7 +165,7 @@ function ConteudoMapa() {
         <p className="mt-1 text-muted">{intro}</p>
       </section>
 
-      <ConsultorComercial uf={selecionada} culturaId={culturaId} />
+      <ConsultorComercial uf={selecionada} culturaId={culturaId} precos={resumo.precos} />
 
       <section aria-label="Escolher estado" className="space-y-2">
         <label htmlFor="seletor-uf" className="text-[0.82rem] font-bold uppercase tracking-wide text-muted">
@@ -134,12 +207,12 @@ function ConteudoMapa() {
           setMunicipio(null);
         }}
         municipioIbge={municipio?.ibge ?? null}
-        aoSelecionarMunicipio={(ibge, nome) => setMunicipio({ ibge, nome })}
+        aoSelecionarMunicipio={(ibgeSel, nome) => setMunicipio({ ibge: ibgeSel, nome })}
       />
 
       {municipio ? (
         <p className="rounded-xl2 border border-terra bg-terra-soft px-4 py-3 text-[0.95rem] font-bold text-terra-ink" role="status">
-          {municipio.nome} · IBGE {municipio.ibge} — cenário da UF {selecionada} abaixo (município ainda sem camada própria).
+          {municipio.nome} · IBGE {municipio.ibge} — cenário abaixo{remoto ? " (dados da região)" : " (cenário da UF, município ainda sem camada própria)"}.
         </p>
       ) : null}
 
