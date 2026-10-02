@@ -1,43 +1,78 @@
-"""Camada de resposta via OpenRouter (modelo xiaomi/mimo-v2-flash).
+"""Camada de resposta via OpenRouter / Groq (modelo configurável por env).
 
 RAG simples: o chamador monta `contexto_dados` em texto a partir dos
 dados reais do Mongo; o LLM só reescreve a resposta com esse contexto.
 Sem chave, falha de rede/timeout ou resposta inválida → None (nunca raise),
 e o chamador cai no fluxo atual (real formatado ou mock).
+
+Variáveis de ambiente (qualquer uma serve):
+  OPENROUTER_API_KEY  → usa OpenRouter (https://openrouter.ai)
+  GROQ_API_KEY        → usa Groq (https://api.groq.com)
 """
 import json
 import os
 
 import httpx
 
-MODEL = "xiaomi/mimo-v2.6-flash"
-URL = "https://openrouter.ai/api/v1/chat/completions"
+# --- Configuração por provider ---
+_GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+_GROQ_MODEL = "llama3-8b-8192"
+_OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+_OPENROUTER_MODEL = "xiaomi/mimo-v2.6-flash"
+
 TIMEOUT_S = 60
 
+
+def _get_key() -> tuple[str | None, str, str]:
+    """Retorna (api_key, url, model) para o provider disponível. None se nenhum."""
+    groq = os.getenv("GROQ_API_KEY")
+    if groq:
+        return groq, _GROQ_URL, _GROQ_MODEL
+    openrouter = os.getenv("OPENROUTER_API_KEY")
+    if openrouter:
+        return openrouter, _OPENROUTER_URL, _OPENROUTER_MODEL
+    return None, _OPENROUTER_URL, _OPENROUTER_MODEL
+
+
+# Aliases de compatibilidade (usados em tools.py e tests)
+MODEL = _OPENROUTER_MODEL
+URL = _OPENROUTER_URL
+
 SYSTEM = (
-    "Você é um copiloto da agricultura familiar brasileira. "
-    "Fale simples, em PT-BR, direto ao ponto. "
-    "Responda usando SÓ o contexto de dados fornecido, sem inventar produtos, janelas ou prazos. "
-    "Cite a fonte indicada no contexto. "
-    "Não receite agrotóxico nem dose sem orientar a buscar um responsável técnico."
+    "Você é o AgroPilot, copiloto da agricultura familiar brasileira. "
+    "Fale simples, em PT-BR, acolhedor e direto ao ponto. "
+    "Responda usando SÓ o contexto de dados fornecido — ZARC, Agrofit, PSR, SIGEF, ANA. "
+    "Não invente produtos, janelas, preços ou prazos. "
+    "Cite sempre a fonte indicada no contexto. "
+    "Não receite agrotóxico nem dose sem orientar a buscar um responsável técnico. "
+    "Se não souber, diga honestamente e sugira onde o produtor pode buscar ajuda."
+)
+
+SYSTEM_AGENT = (
+    "Você é o AgroPilot, copiloto da agricultura familiar brasileira com acesso a dados abertos oficiais: "
+    "ZARC (janelas de plantio e riscos climáticos), Agrofit/MAPA (defensivos registrados), "
+    "PSR/SISSER (seguro rural), SIGEF (sementes certificadas) e ANA (irrigação). "
+    "Use as ferramentas disponíveis para buscar dados reais antes de responder. "
+    "Sempre cite a fonte. Nunca invente dados. "
+    "Responda em PT-BR, de forma simples e direta para pequenos produtores rurais."
 )
 
 
 def gerar_resposta(intencao, mensagem: str, contexto_dados: str) -> str | None:
-    key = os.getenv("OPENROUTER_API_KEY")
+    key, url, model = _get_key()
     if not key:
         return None
     if not contexto_dados or not contexto_dados.strip():
         return None
     try:
         resp = httpx.post(
-            URL,
+            url,
             headers={
                 "Authorization": f"Bearer {key}",
                 "Content-Type": "application/json",
             },
             json={
-                "model": MODEL,
+                "model": model,
                 "messages": [
                     {"role": "system", "content": SYSTEM},
                     {
@@ -86,15 +121,15 @@ def _headers(key: str) -> dict:
 
 
 def gerar_resposta_stream(intencao, mensagem: str, contexto_dados: str):
-    """Yielda chunks str via SSE OpenRouter. Sem chave/contexto/falha -> nada. Nunca raise."""
-    key = os.getenv("OPENROUTER_API_KEY")
+    """Yielda chunks str via SSE. Sem chave/contexto/falha -> nada. Nunca raise."""
+    key, url, model = _get_key()
     if not key:
         return
     if not contexto_dados or not contexto_dados.strip():
         return
     try:
         with httpx.stream(
-            "POST", URL, headers=_headers(key),
+            "POST", url, headers=_headers(key),
             json=_payload(intencao, mensagem, contexto_dados, True),
             timeout=TIMEOUT_S,
         ) as resp:
@@ -138,20 +173,6 @@ except Exception:
         TOOLS_SCHEMA = []
         dispatch = None
 
-SYSTEM_AGENT = (
-    "Você é um copiloto da agricultura familiar brasileira. "
-    "Fale simples, em PT-BR, direto ao ponto. "
-    "ANTES de responder qualquer pergunta sobre plantio, praga, clima, risco, area ou municipio: "
-    "chame as ferramentas (buscar_janelas_zarc, buscar_produtos_agrofit, buscar_risco_psr, "
-    "buscar_area_sigef, buscar_irrigacao_ana, buscar_municipio) para obter dados reais. "
-    "Nunca responda de memória nem invente valores. "
-    "Se faltar cultura ou municipio na pergunta, use cultura/objetivo detectado na mensagem, "
-    "municipio Araraquara/SP 3503208 como padrão, e CHAME a ferramenta mesmo assim. "
-    "Saudação simples (oi/bom dia) pode responder direto sem ferramenta. "
-    "Se os dados vierem vazios, diga o que falta e peça a informação necessária. "
-    "Cite as fontes dos dados usados. "
-    "Não receite agrotóxico nem dose sem orientar a buscar um responsável técnico."
-)
 
 _MAX_ROUNDS = 3
 _RESUMO_TXT = 2000
@@ -218,10 +239,10 @@ def _seguro(obj):
         return {"erro": "resultado nao serializavel"}
 
 
-def _post_tools(key: str, messages: list):
+def _post_tools(key: str, messages: list, url: str = None, model: str = None):
     resp = httpx.post(
-        URL, headers=_headers(key),
-        json={"model": MODEL, "messages": messages,
+        url or URL, headers=_headers(key),
+        json={"model": model or MODEL, "messages": messages,
               "tools": TOOLS_SCHEMA, "tool_choice": "auto"},
         timeout=TIMEOUT_S,
     )
@@ -241,7 +262,7 @@ def _assistant_tool_msg(msg, calls):
 
 def responder_com_tools(mensagem: str, db=None, produtor_id=None, max_rounds=3):
     """Loop agente sync. Retorna (texto|None, usadas). Nunca raise."""
-    key = os.getenv("OPENROUTER_API_KEY")
+    key, url, model = _get_key()
     if not key or not TOOLS_SCHEMA or dispatch is None:
         return None, []
     if not (mensagem or "").strip():
@@ -256,7 +277,7 @@ def responder_com_tools(mensagem: str, db=None, produtor_id=None, max_rounds=3):
     try:
         for _ in range(rounds):
             try:
-                data = _post_tools(key, messages)
+                data = _post_tools(key, messages, url, model)
             except Exception:
                 return None, usadas
             choice = _first_choice(data)
@@ -298,7 +319,7 @@ def responder_com_tools(mensagem: str, db=None, produtor_id=None, max_rounds=3):
 
 def responder_com_tools_stream(mensagem: str, db=None, produtor_id=None, max_rounds=3):
     """Gera ("tool", {name, args}) por call executada, depois ("delta", chunk). Nunca raise."""
-    key = os.getenv("OPENROUTER_API_KEY")
+    key, url, model = _get_key()
     if not key or not TOOLS_SCHEMA or dispatch is None:
         return
     if not (mensagem or "").strip():
@@ -312,7 +333,7 @@ def responder_com_tools_stream(mensagem: str, db=None, produtor_id=None, max_rou
     try:
         for _ in range(rounds):
             try:
-                data = _post_tools(key, messages)
+                data = _post_tools(key, messages, url, model)
             except Exception:
                 return
             choice = _first_choice(data)
