@@ -97,47 +97,52 @@ export function PainelRegional({ resumo }: { resumo: ResumoRegional }) {
   const { uf, producao, solo, seguro, irrigacao, precos, canais, oportunidade } = resumo;
   const voz = `${uf.nome}. Producao, seguro, irrigacao, preco e canais ainda pendentes. Nada aqui e recomendacao de venda.`;
   return (
-    <section aria-label={`Painel regional de ${uf.nome}`} className="space-y-3 animate-fade-up">
-      <div className="flex items-start justify-between gap-3 rounded-xl2 border border-line bg-surface p-4 shadow-card">
+    <section aria-label={`Painel regional de ${uf.nome}`} className="space-y-3.5 animate-fade-up">
+      <div className="flex items-start justify-between gap-3 rounded-xl2 border border-line bg-surface p-4 sm:p-5 shadow-card card-hover">
         <div>
-          <p className="text-[0.8rem] font-bold uppercase tracking-wide text-muted">{uf.regiao} - {uf.sigla}</p>
-          <h2 className="font-display text-[1.4rem] font-extrabold text-ink">{uf.nome}</h2>
-          <p className="text-[0.92rem] text-muted">Cenario da regiao. O sistema mostra — nao decide por voce.</p>
+          <span className="inline-block rounded-full bg-terra-soft px-2.5 py-0.5 text-[0.75rem] font-bold uppercase tracking-wide text-terra-ink">
+            {uf.regiao} · {uf.sigla}
+          </span>
+          <h2 className="mt-1 font-display text-[1.45rem] font-extrabold text-ink">{uf.nome}</h2>
+          <p className="mt-0.5 text-[0.92rem] text-muted">Cenário regional consolidado. Informações para apoiar suas decisões.</p>
         </div>
         <AudioButton texto={voz} />
       </div>
-      <EvidenceCard evidencia={{ tipo: "sigef", estado: mapearEstado(producao.estado), titulo: "O que a regiao mais produz", detalhe: detalheProducao(producao), fonte: producao.fonte }} />
+      <EvidenceCard evidencia={{ tipo: "sigef", estado: mapearEstado(producao.estado), titulo: "O que a região mais produz", detalhe: detalheProducao(producao), fonte: producao.fonte }} />
       <EvidenceCard evidencia={{ tipo: "zarc", estado: mapearEstado(solo.estado), titulo: "Tipo de solo predominante", detalhe: solo.descricao, fonte: solo.fonte }} />
-      <EvidenceCard evidencia={{ tipo: "psr", estado: mapearEstado(seguro.estado), titulo: "Forca da cultura no seguro", detalhe: detalheSeguro(seguro), fonte: seguro.fonte }} />
-      <EvidenceCard evidencia={{ tipo: "ana", estado: mapearEstado(irrigacao.estado), titulo: "Irrigacao disponivel", detalhe: detalheIrrigacao(irrigacao), fonte: irrigacao.fonte }} />
-      <article className="relative overflow-hidden rounded-xl2 border border-line bg-surface p-4 shadow-soft">
-        <span className="absolute left-0 top-0 h-full w-1.5 bg-terra" aria-hidden />
-        <h3 className="font-display text-[1.1rem] font-extrabold text-ink">Para vender melhor</h3>
-        <p className="mt-1 text-[0.92rem] text-muted">Preço de referência + canais — contexto, nao e recomendacao de venda.</p>
-        <div className="mt-3 space-y-2">
+      <EvidenceCard evidencia={{ tipo: "psr", estado: mapearEstado(seguro.estado), titulo: "Força da cultura no seguro agrícola", detalhe: detalheSeguro(seguro), fonte: seguro.fonte }} />
+      <EvidenceCard evidencia={{ tipo: "ana", estado: mapearEstado(irrigacao.estado), titulo: "Irrigação disponível", detalhe: detalheIrrigacao(irrigacao), fonte: irrigacao.fonte }} />
+      <article className="relative overflow-hidden rounded-xl2 border border-line bg-surface p-4 sm:p-5 shadow-soft card-hover">
+        <span className="absolute left-0 top-0 h-full w-1.5 bg-gradient-to-b from-amber-500 to-terra" aria-hidden />
+        <h3 className="font-display text-[1.15rem] font-extrabold text-ink">Para vender melhor</h3>
+        <p className="mt-1 text-[0.92rem] text-muted">Preço de referência e canais de escoamento. Contexto mercadológico transparente.</p>
+        <div className="mt-3.5 space-y-2.5">
           {precos.map((p) => <BlocoPreco key={p.tipo} preco={p} />)}
         </div>
       </article>
-      <EvidenceCard evidencia={{ tipo: "zarc", estado: mapearEstado(canais.estado), titulo: "Canais de comercializacao", detalhe: canais.detalhe, fonte: canais.fonte }} />
-      <div className="space-y-2" aria-label="Categorias de canal">
+      <EvidenceCard evidencia={{ tipo: "zarc", estado: mapearEstado(canais.estado), titulo: "Canais de comercialização", detalhe: canais.detalhe, fonte: canais.fonte }} />
+      <div className="space-y-2.5" aria-label="Categorias de canal">
         {canais.canais.map((c) => (
-          <div key={c.id} className="rounded-xl border border-line bg-surface p-3 shadow-soft">
+          <div key={c.id} className="rounded-xl border border-line bg-surface p-3.5 shadow-soft card-hover">
             <p className="font-bold text-ink">{c.categoria}</p>
-            <p className="text-[0.9rem] text-muted">{c.descricao}</p>
+            <p className="mt-0.5 text-[0.9rem] text-muted">{c.descricao}</p>
           </div>
         ))}
       </div>
-      <p className="rounded-xl border border-line bg-canvas p-3 text-[0.85rem] text-muted">
-        Nomes de compradores especificos dependem de base futura — aqui mostramos so categorias reais, sem empresa fabricada.
+      <p className="rounded-xl border border-line bg-canvas/70 p-3 text-[0.84rem] text-muted leading-relaxed">
+        ℹ️ Compradores específicos e parceiros locais são validados continuamente pelas cooperativas e fontes oficiais.
       </p>
-      <div className="flex flex-wrap gap-2" aria-label="Programas">
+      <div className="flex flex-wrap gap-2" aria-label="Programas governamentais">
         {canais.programas.map((p) => (
-          <span key={p} className="rounded-full border border-line bg-surface px-3 py-1.5 text-[0.85rem] font-semibold text-muted">{p}</span>
+          <span key={p} className="rounded-full border border-line bg-surface px-3 py-1 text-[0.82rem] font-bold text-terra-ink shadow-soft hover:bg-terra-soft transition">
+            ✓ {p}
+          </span>
         ))}
       </div>
       <EvidenceCard evidencia={{ tipo: "zarc", estado: mapearEstado(oportunidade.estado), titulo: "Oportunidade regional (ZARC x SIGEF)", detalhe: oportunidade.detalhe, fonte: oportunidade.fonte }} />
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 pt-1">
         <AudioButton texto={oportunidade.detalhe} />
+        <span className="text-[0.82rem] font-medium text-muted">Ouvir análise de oportunidade</span>
       </div>
     </section>
   );

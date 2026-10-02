@@ -103,30 +103,30 @@ export default function Onboarding() {
     (passo === "cultura" && !!cultura);
 
   return (
-    <main className="flex min-h-screen flex-col bg-canvas px-6 pb-10 pt-10">
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
+    <main className="flex min-h-screen flex-col bg-canvas px-4 sm:px-6 pb-10 pt-10">
+      <div className={`mx-auto flex w-full ${passo === "local" ? "max-w-2xl" : "max-w-md"} flex-1 flex-col transition-all duration-300`}>
         {/* progresso */}
         <div className="flex items-center gap-3">
           <button
             onClick={voltar}
             aria-label="Voltar"
-            className="grid h-10 w-10 place-items-center rounded-full border border-line text-muted transition hover:border-terra"
+            className="grid h-10 w-10 place-items-center rounded-full border border-line bg-surface text-muted transition hover:border-terra shadow-soft"
           >
             <ArrowLeft size={20} />
           </button>
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-line">
+          <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-line">
             <div
-              className="h-full rounded-full bg-terra transition-all duration-300"
+              className="h-full rounded-full bg-gradient-to-r from-amber-500 to-terra transition-all duration-300"
               style={{ width: `${progresso}%` }}
             />
           </div>
-          <span className="text-[0.85rem] font-semibold text-muted">
+          <span className="text-[0.85rem] font-bold text-muted">
             {Math.min(indice + 1, ORDEM.length)}/{ORDEM.length}
           </span>
         </div>
 
         {/* pergunta */}
-        <div className="mt-10">
+        <div className="mt-8 sm:mt-10">
           <div className="flex items-start justify-between gap-3">
             <h1 className="font-display text-[1.7rem] font-extrabold leading-tight text-ink">
               {perguntas[passo]}
@@ -191,14 +191,14 @@ export default function Onboarding() {
           )}
 
           {passo === "cultura" && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {CULTURAS.map((c) => (
                 <button
                   key={c.id}
                   onClick={() => setCultura(c.id)}
                   aria-pressed={cultura === c.id}
-                  className={`flex min-h-[96px] flex-col items-center justify-center gap-1 rounded-xl2 border-2 bg-surface shadow-soft transition ${
-                    cultura === c.id ? "border-terra bg-terra-soft" : "border-line hover:border-terra"
+                  className={`flex min-h-[96px] flex-col items-center justify-center gap-1 rounded-xl2 border-2 bg-surface shadow-soft transition card-hover ${
+                    cultura === c.id ? "border-terra bg-terra-soft/80" : "border-line hover:border-terra"
                   }`}
                 >
                   <span className="text-3xl" aria-hidden>{c.emoji}</span>

@@ -17,10 +17,10 @@ export function BottomNav() {
 
   return (
     <nav
-      aria-label="Navegação principal"
-      className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur"
+      aria-label="Navegação móvel"
+      className="md:hidden safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur-lg shadow-lift transition-colors"
     >
-      <ul className="mx-auto flex max-w-md items-stretch justify-around">
+      <ul className="mx-auto flex max-w-md items-stretch justify-around px-2 py-1">
         {ABAS.map(({ href, rotulo, Icone }) => {
           const ativo = path === href || path.startsWith(href + "/");
           return (
@@ -28,16 +28,12 @@ export function BottomNav() {
               <Link
                 href={href}
                 aria-current={ativo ? "page" : undefined}
-                className={`flex min-h-[60px] min-w-[44px] flex-col items-center justify-center gap-0.5 px-1 text-[0.7rem] font-semibold transition ${
-                  ativo ? "text-terra-ink" : "text-muted"
+                className={`flex min-h-[58px] min-w-[44px] flex-col items-center justify-center gap-1 rounded-xl px-1 text-[0.72rem] font-bold transition-all ${
+                  ativo ? "text-terra-ink bg-terra-soft/60 scale-[1.02]" : "text-muted hover:text-ink"
                 }`}
               >
-                <Icone size={24} strokeWidth={ativo ? 2.6 : 2} aria-hidden />
-                {rotulo}
-                <span
-                  className={`mt-0.5 h-1 w-1 rounded-full ${ativo ? "bg-terra" : "bg-transparent"}`}
-                  aria-hidden
-                />
+                <Icone size={22} strokeWidth={ativo ? 2.5 : 2} aria-hidden />
+                <span>{rotulo}</span>
               </Link>
             </li>
           );

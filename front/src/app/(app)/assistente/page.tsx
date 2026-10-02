@@ -301,12 +301,12 @@ function ConteudoAssistente() {
   if (!carregado) return null;
 
   return (
-    <div className="flex min-h-[calc(100vh-10rem)] flex-col">
+    <div className="flex min-h-[calc(100vh-8rem)] max-w-4xl mx-auto flex-col">
       {/* sessões estilo ChatGPT: nova conversa + histórico */}
       <div className="mb-3 flex items-center gap-2">
         <button
           onClick={novaConversa}
-          className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl2 border border-line bg-surface px-4 font-bold text-terra-ink shadow-soft transition hover:border-terra"
+          className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl2 border border-line bg-surface px-4 font-bold text-terra-ink shadow-soft transition hover:border-terra active:scale-[0.99]"
         >
           <Plus size={18} aria-hidden /> Nova conversa
         </button>
@@ -315,15 +315,15 @@ function ConteudoAssistente() {
             onClick={() => setMostrarHist((v) => !v)}
             aria-expanded={mostrarHist}
             aria-label="Ver conversas anteriores"
-            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl2 border border-line bg-surface px-4 font-bold text-muted transition hover:border-terra hover:text-ink"
+            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-xl2 border border-line bg-surface px-4 font-bold text-muted transition hover:border-terra hover:text-ink shadow-soft"
           >
             <History size={18} aria-hidden />
-            {sessoes.length}
+            <span className="text-xs bg-terra-soft px-2 py-0.5 rounded-full text-terra-ink font-extrabold">{sessoes.length}</span>
           </button>
         ) : null}
       </div>
       {mostrarHist && sessoes.length > 0 ? (
-        <ul className="mb-3 max-h-44 space-y-1 overflow-y-auto rounded-xl2 border border-line bg-surface p-2 shadow-soft" aria-label="Conversas anteriores">
+        <ul className="mb-3 max-h-52 space-y-1 overflow-y-auto rounded-xl2 border border-line bg-surface p-2 shadow-card animate-fade-up" aria-label="Conversas anteriores">
           {sessoes.map((s) => (
             <li key={s.id}>
               <button
@@ -333,7 +333,7 @@ function ConteudoAssistente() {
                 }}
                 aria-current={sessaoId === s.id}
                 className={`block min-h-[44px] w-full truncate rounded-xl px-3 py-2 text-left text-[0.92rem] font-semibold transition ${
-                  sessaoId === s.id ? "bg-terra-soft text-terra-ink" : "text-ink hover:bg-canvas"
+                  sessaoId === s.id ? "bg-terra-soft text-terra-ink font-bold" : "text-ink hover:bg-canvas"
                 }`}
               >
                 {typeof s.titulo === "string" && s.titulo ? s.titulo : "Conversa"}
@@ -343,20 +343,21 @@ function ConteudoAssistente() {
         </ul>
       ) : null}
 
-      <div className="flex-1 space-y-3">
+      <div className="flex-1 space-y-3.5 pb-4">
         {msgs.map((m) => (
           <div key={m.id}>
             <ChatBubble msg={m} />
             {m.autor === "copiloto" && m.ferramentas?.length ? (
-              <p className="ml-1 mt-1 text-[0.78rem] font-semibold text-muted">
-                Consultou: {m.ferramentas.join(", ")}
+              <p className="ml-2 mt-1 text-[0.76rem] font-semibold text-muted flex items-center gap-1">
+                <span>🔍 Fontes consultadas:</span>
+                <span className="text-terra-ink">{m.ferramentas.join(", ")}</span>
               </p>
             ) : null}
           </div>
         ))}
         {pensando && (
           <div className="flex justify-start">
-            <div className="flex items-center gap-1.5 rounded-xl2 rounded-bl-md border border-line bg-surface px-4 py-3 shadow-soft">
+            <div className="flex items-center gap-2 rounded-xl2 rounded-bl-md border border-line bg-surface px-4 py-3 shadow-soft">
               {[0, 1, 2].map((i) => (
                 <span
                   key={i}
@@ -364,6 +365,7 @@ function ConteudoAssistente() {
                   style={{ animationDelay: `${i * 0.15}s` }}
                 />
               ))}
+              <span className="text-xs text-muted font-medium ml-1">Analisando dados agronômicos…</span>
             </div>
           </div>
         )}
@@ -371,8 +373,8 @@ function ConteudoAssistente() {
       </div>
 
       {/* sugestões + input fixos acima da bottom-nav */}
-      <div className="sticky bottom-20 mt-4 space-y-3">
-        <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4">
+      <div className="sticky bottom-20 md:bottom-2 mt-4 space-y-2.5 z-20 bg-canvas/80 backdrop-blur-md pt-2">
+        <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
           {SUGESTOES_CHAT.map((s) => (
             <Chip key={s.texto} emoji={s.emoji} onClick={() => enviar(s.texto)}>
               {s.texto}

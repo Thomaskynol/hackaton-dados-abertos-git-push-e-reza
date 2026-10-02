@@ -79,6 +79,38 @@ body {
   display: none;
 }
 
+/* Scrollbar refinada para áreas com overflow */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--c-line));
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--c-muted) / 0.5);
+}
+
+/* Transições suaves e efeitos de vidro */
+.glass-panel {
+  background-color: rgb(var(--c-surface) / 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgb(42 36 32 / 0.09);
+  border-color: rgb(var(--c-terra) / 0.4);
+}
+
 /* respeita quem pediu menos movimento */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -89,3 +121,4 @@ body {
     transition-duration: 0.001ms !important;
   }
 }
+
