@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Tokens de cor — paleta terrosa.
+  Valores em "R G B" (sem vírgula) para casar com rgb(var(--x) / <alpha>) do Tailwind.
+*/
+:root {
+  /* fontes do sistema (sem dependência de CDN); trocáveis por next/font depois */
+  --font-sans: ui-rounded, "SF Pro Rounded", "Segoe UI", system-ui, -apple-system,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-display: var(--font-sans);
+
+  --c-canvas: 250 246 240;   /* off-white quente (terra clara) */
+  --c-surface: 255 255 255;  /* cartões */
+  --c-line: 234 223 211;     /* bordas suaves */
+  --c-ink: 42 36 32;         /* grafite quente (texto) */
+  --c-muted: 110 101 92;     /* texto secundário */
+
+  --c-terra: 200 90 60;      /* terracota — AÇÃO primária */
+  --c-terra-soft: 243 234 223;
+  --c-terra-ink: 138 54 32;
+
+  --c-favoravel: 107 122 79;  /* oliva dessaturado (só p/ favorável) */
+  --c-atencao: 232 163 61;    /* âmbar */
+  --c-risco: 179 58 43;       /* vermelho-tijolo */
+  --c-pendente: 139 128 116;  /* cinza-terra (sem dado) */
+}
+
+/* Modo Campo: alto contraste para luz solar forte */
+.modo-campo {
+  --c-canvas: 255 255 255;
+  --c-surface: 255 255 255;
+  --c-line: 180 168 155;
+  --c-ink: 20 16 12;
+  --c-muted: 70 62 54;
+  --c-terra: 168 60 32;
+  --c-terra-ink: 110 36 18;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  background-color: rgb(var(--c-canvas));
+  color: rgb(var(--c-ink));
+  font-family: var(--font-sans), system-ui, sans-serif;
+  /* corpo generoso para baixa alfabetização / leitura no sol */
+  font-size: 17px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* área segura em telefones com notch + espaço p/ bottom-nav */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* acessibilidade: foco visível e consistente */
+:focus-visible {
+  outline: 3px solid rgb(var(--c-terra));
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* esconde scrollbar horizontal dos carrosséis de chips */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* respeita quem pediu menos movimento */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
