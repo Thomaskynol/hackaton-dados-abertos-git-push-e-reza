@@ -254,8 +254,34 @@ document.addEventListener("DOMContentLoaded", () => {
     chatMessagesStream.appendChild(typingRow);
     chatMessagesStream.scrollTop = chatMessagesStream.scrollHeight;
 
-    setTimeout(() => {
+    setTimeout(async () => {
       typingRow.remove();
+
+      // Tenta API real primeiro; fallback para copilot local
+      if (window.AgroAPI && window.AgroAPI.isBackendOnline()) {
+        const session = window.AgroAPI.loadSession();
+        const produtorId = session?.id || "demo-user";
+        try {
+          const apiResp = await window.AgroAPI.postChat(produtorId, text);
+          if (apiResp.erro) {
+            // Fallback sugestões
+            const sugestoes = (apiResp.sugestoes || []).map(s => `\n• ${s}`).join("");
+            const msg = `${apiResp.mensagem}${sugestoes ? `\n\nTente perguntar:${sugestoes}` : ""}`;
+            appendMessage("ai", msg, { fonte: "AgroPilot", confianca: 60, audioText: apiResp.mensagem });
+          } else {
+            const meta = {
+              fonte: apiResp.fonte || "API",
+              porQue: `Intenção: ${apiResp.intencao}`,
+              confianca: 92,
+              audioText: apiResp.resposta,
+            };
+            appendMessage("ai", apiResp.resposta, meta);
+          }
+          return;
+        } catch {}
+      }
+
+      // Fallback: copilot local
       const answer = window.agroCopilot.processMessage(text);
       appendMessage("ai", answer.text, answer);
     }, 380);
@@ -465,6 +491,31 @@ document.addEventListener("DOMContentLoaded", () => {
   // ==========================================================================
   // 10. Inicialização
   // ==========================================================================
+
+  // Carrega perfil salvo no localStorage (vindo do login)
+  function loadProfileFromSession() {
+    try {
+      const profile = window.AgroAPI ? window.AgroAPI._loadLocalProfile() : JSON.parse(localStorage.getItem("agropilot_profile") || "null");
+      if (!profile) return;
+
+      // Atualiza AGRO_DATA com dados reais do produtor
+      if (profile.nome) AGRO_DATA.currentProfile.nome = profile.nome;
+      if (profile.municipio && profile.uf) AGRO_DATA.currentProfile.municipio = `${profile.municipio} - ${profile.uf}`;
+      if (profile.lavouras && profile.lavouras.length > 0) {
+        const c = profile.lavouras[0].cultura?.toLowerCase() || "soja";
+        AGRO_DATA.currentProfile.culturaAtual = AGRO_DATA.culturas[c] ? c : "soja";
+      }
+
+      // Atualiza boas-vindas iniciais
+      const welcomeEl = document.querySelector(".msg-row.ai .msg-bubble strong");
+      const parts = profile.nome.trim().split(/\s+/);
+      const shortName = (parts[0].toLowerCase() === "seu" || parts[0].toLowerCase() === "dona") && parts[1]
+        ? `${parts[0]} ${parts[1]}` : parts[0];
+      if (welcomeEl) welcomeEl.textContent = shortName;
+    } catch {}
+  }
+
+  loadProfileFromSession();
   updateFarmerContextUI();
 
   // Conectar botões de áudio iniciais
@@ -477,3 +528,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   console.log("🌾 AgroPilot Clean Chatbot ativo.");
 });
+
+// ─── Global: Logout ───────────────────────────────────────────────────────────
+function handleLogout() {
+  localStorage.removeItem("agropilot_session");
+  localStorage.removeItem("agropilot_profile");
+  // Redireciona para tela de login
+  window.location.href = "hackathon/login/login.html";
+}
+window.handleLogout = handleLogout;
