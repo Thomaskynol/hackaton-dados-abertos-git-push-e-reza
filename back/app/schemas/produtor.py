@@ -22,6 +22,7 @@ class ProdutorCreate(BaseModel):
     uf: str
     lavouras: List[Lavoura] = []
     preferencias: Optional[Preferencias] = None
+    solo_inferido: Optional[str] = None
 
 
 class ProdutorResponse(BaseModel):

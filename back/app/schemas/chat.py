@@ -6,6 +6,7 @@ from .intencoes import Intencao
 class ChatRequest(BaseModel):
     produtor_id: str
     mensagem: str
+    sessao_id: Optional[str] = None
 
 
 class ChatResponseSuccess(BaseModel):
