@@ -24,6 +24,8 @@ services:
     environment:
       - MONGO_URL=mongodb://mongo:27017
       - CORS_ORIGINS=*
+      # Ex.: OPENROUTER_API_KEY=sk-or-v1-... (nunca commitar a chave real)
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     depends_on:
       - mongo
