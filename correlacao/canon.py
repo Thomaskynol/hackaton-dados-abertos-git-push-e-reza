@@ -70,3 +70,44 @@ def e_sinistro(evento: str | None, valor) -> bool:
         return float(str(valor).replace(",", ".")) > 0
     except (ValueError, TypeError):
         return False
+
+
+def parse_area(raw) -> float | None:
+    """'12,5' -> 12.5; '1.234,56' -> 1234.56; ''/'-' /None/invalido -> None."""
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    if s in ("", "-"):
+        return None
+    if "," in s:
+        s = s.replace(".", "").replace(",", ".")
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def canonizar(nome: str | None) -> str:
+    """Slug [a-z0-9-] p/ join entre bases; preserva safra/ordinal ('Milho 1a' != 'Milho 2a')."""
+    import re
+    s = nome or ""
+    if "Ã" in s:  # mojibake UTF-8 lido como cp1252 (cf. agrofit.py:32)
+        try:
+            s = s.encode("cp1252").decode("utf-8")
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            pass
+    s = sem_acento(s).lower().strip()
+    s = s.replace("ª", "a").replace("º", "o").replace("°", "o")
+    for dash in ("–", "—", "―", "_"):
+        s = s.replace(dash, "-")
+    return re.sub(r"[^a-z0-9]+", "-", s).strip("-")
+
+
+def ibge7z(codigo) -> str:
+    """ibge7 + zfill(7): so digitos, len>7 corta ultimo, completa com zeros."""
+    s = "".join(ch for ch in str(codigo or "") if ch.isdigit())
+    if not s:
+        return ""
+    if len(s) > 7:
+        s = s[:-1]
+    return s.zfill(7)

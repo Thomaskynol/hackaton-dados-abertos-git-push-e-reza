@@ -19,14 +19,18 @@ from datetime import date
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 try:
-    from correlacao.canon import cultura_canonica, e_sinistro
+    from correlacao.canon import cultura_canonica, e_sinistro, ibge7z, parse_area
 except ImportError:  # executado de dentro de correlacao/
-    from canon import cultura_canonica, e_sinistro
+    from canon import cultura_canonica, e_sinistro, ibge7z, parse_area
 
 # LGPD: whitelist de colunas. Todo o resto (PII, coords) eh ignorado na leitura.
 COLS_NECESSARIAS = ["NM_MUNICIPIO_PROPRIEDADE", "SG_UF_PROPRIEDADE",
                     "NM_CULTURA_GLOBAL", "ANO_APOLICE", "CD_GEOCMU",
-                    "VALOR_INDENIZAÇÃO", "EVENTO_PREPONDERANTE"]
+                    "VALOR_INDENIZAÇÃO", "EVENTO_PREPONDERANTE",
+                    "NR_AREA_TOTAL"]
+
+# Limiar lacuna-seguro: apolice pequena = area <= 50 ha.
+AREA_PEQUENA_MAX = 50
 
 
 def num_br(raw):
@@ -51,7 +55,16 @@ def agregar(entradas):
         with open(caminho, encoding="latin1", newline="") as fh:
             rdr = csv.reader(fh, delimiter=";")
             header = next(rdr)
-            idx = {c: header.index(c) for c in COLS_NECESSARIAS}  # KeyError se faltar coluna
+            idx: dict = {}
+            try:
+                idx = {c: header.index(c) for c in COLS_NECESSARIAS}
+            except (KeyError, ValueError):
+                if "NR_AREA_TOTAL" in header:
+                    raise
+                # CSV sem coluna de area (ex. 2025) -> fallback sem area
+                idx = {c: header.index(c) for c in COLS_NECESSARIAS
+                       if c != "NR_AREA_TOTAL"}
+                idx["NR_AREA_TOTAL"] = None
             for lin in rdr:
                 linhas += 1
                 # LGPD: so toca nas colunas da whitelist
@@ -62,20 +75,30 @@ def agregar(entradas):
                     ano = int((lin[idx["ANO_APOLICE"]] or "").strip())
                 except ValueError:
                     continue
-                cod = "".join(ch for ch in lin[idx["CD_GEOCMU"]] if ch.isdigit())
+                cod = ibge7z(lin[idx["CD_GEOCMU"]])
                 if not cod:
                     sem_geo += 1
                 ev_raw = lin[idx["EVENTO_PREPONDERANTE"]]
                 val_raw = lin[idx["VALOR_INDENIZAÇÃO"]]
                 sin = e_sinistro(ev_raw, val_raw)  # regra medida Sec. 5.2
                 valor = num_br(val_raw)
+                area_idx = idx["NR_AREA_TOTAL"]
+                area = parse_area(lin[area_idx]) if area_idx is not None else None
                 chave = (cod, uf, muni, cultura, ano)
                 g = grupos.get(chave)
                 if g is None:
                     g = grupos[chave] = {"apolices": 0, "sinistros": 0,
                                          "pago": 0.0, "eventos": Counter(),
-                                         "ev_valor": Counter()}
+                                         "ev_valor": Counter(),
+                                         "apolices_pequenas": 0,
+                                         "area_pequena_ha": 0.0,
+                                         "area_total_ha": 0.0}
                 g["apolices"] += 1
+                if area is not None:
+                    g["area_total_ha"] += area
+                    if area <= AREA_PEQUENA_MAX:
+                        g["apolices_pequenas"] += 1
+                        g["area_pequena_ha"] += area
                 if sin:
                     g["sinistros"] += 1
                     g["pago"] += valor
@@ -114,6 +137,9 @@ def main(argv):
                 "total_apolices": g["apolices"], "total_sinistros": g["sinistros"],
                 "taxa_sinistro_pct": round(g["sinistros"] / g["apolices"] * 100, 2),
                 "total_pago_reais": round(g["pago"], 2),
+                "total_apolices_pequenas": g["apolices_pequenas"],
+                "area_pequena_ha": round(g["area_pequena_ha"], 2),
+                "area_total_ha": round(g["area_total_ha"], 2),
                 "por_evento": por_evento, "fonte_arquivo": fonte,
             }, ensure_ascii=False) + "\n")
 
