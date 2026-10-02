@@ -1,11 +1,16 @@
-from fastapi import APIRouter, HTTPException
-from ..schemas.produtor import ProdutorCreate, ProdutorResponse
+from fastapi import APIRouter
+from ..schemas.produtor import ProdutorCreate, ProdutorResponse, ProdutorCreateResponse
 from ..mock import MOCK_PRODUTOR
 
 router = APIRouter(prefix="/api", tags=["Produtor"])
 
 
-@router.get("/produtor/{id}")
+@router.get(
+    "/produtor/{id}",
+    response_model=ProdutorResponse,
+    summary="Obter perfil do produtor",
+    description="Retorna os dados cadastrais, lavouras e preferências do produtor rural.",
+)
 def obter_produtor(id: str):
     if id != MOCK_PRODUTOR["id"] and id != "antonio":
         # Retorna o perfil mockado com o id requisitado para facilitar testes do front
@@ -15,10 +20,16 @@ def obter_produtor(id: str):
     return MOCK_PRODUTOR
 
 
-@router.post("/produtor")
+@router.post(
+    "/produtor",
+    response_model=ProdutorCreateResponse,
+    summary="Cadastrar ou atualizar perfil",
+    description="Cria ou atualiza as características do produtor e suas lavouras.",
+)
 def cadastrar_ou_atualizar_produtor(produtor: ProdutorCreate):
     return {
         "id": "abc123",
         "mensagem": "Perfil cadastrado com sucesso",
         "ok": True,
     }
+

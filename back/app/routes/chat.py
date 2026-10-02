@@ -1,3 +1,4 @@
+from typing import Union
 from fastapi import APIRouter
 from ..schemas.chat import ChatRequest, ChatResponseSuccess, ChatResponseError
 from ..schemas.intencoes import Intencao
@@ -12,8 +13,14 @@ from ..mock import (
 router = APIRouter(prefix="/api", tags=["Chat"])
 
 
-@router.post("/chat")
+@router.post(
+    "/chat",
+    response_model=Union[ChatResponseSuccess, ChatResponseError],
+    summary="Processar mensagem de chat",
+    description="Classifica a intenção do produtor e retorna resposta com dados estruturados e fontes oficiais.",
+)
 def processar_chat(req: ChatRequest):
+
     intencao = classificar_intencao(req.mensagem)
 
     if intencao == Intencao.PRAGA:

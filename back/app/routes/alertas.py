@@ -1,17 +1,31 @@
 from datetime import datetime, timezone
 from fastapi import APIRouter
-from ..schemas.alertas import SimularAlertaRequest
+from ..schemas.alertas import (
+    SimularAlertaRequest,
+    SimularAlertaResponse,
+    AlertasListResponse,
+)
 from ..mock import MOCK_ALERTA_GEADA
 
 router = APIRouter(prefix="/api", tags=["Alertas"])
 
 
-@router.get("/alertas/{id}")
+@router.get(
+    "/alertas/{id}",
+    response_model=AlertasListResponse,
+    summary="Listar alertas do produtor",
+    description="Retorna a lista de alertas agroclimáticos ativos para o produtor.",
+)
 def listar_alertas(id: str):
     return {"alertas": [MOCK_ALERTA_GEADA]}
 
 
-@router.post("/alertas/simular")
+@router.post(
+    "/alertas/simular",
+    response_model=SimularAlertaResponse,
+    summary="Simular alerta climático",
+    description="Dispara manualmente a simulação de um alerta agroclimático (geada, seca, etc.).",
+)
 def simular_alerta(req: SimularAlertaRequest):
     return {
         "ok": True,
@@ -25,3 +39,4 @@ def simular_alerta(req: SimularAlertaRequest):
             "lido": False,
         },
     }
+

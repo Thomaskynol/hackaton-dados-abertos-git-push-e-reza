@@ -36,6 +36,12 @@ class ProdutorResponse(BaseModel):
     criado_em: str
 
 
+class ProdutorCreateResponse(BaseModel):
+    id: str
+    mensagem: str
+    ok: bool = True
+
+
 class OnboardingRequest(BaseModel):
     telefone: str
     etapa: int
@@ -46,3 +52,4 @@ class OnboardingResponse(BaseModel):
     proximo_passo: int
     pergunta: str
     perfil_parcial: Optional[Dict[str, Any]] = None
+

@@ -4,8 +4,14 @@ from ..schemas.produtor import OnboardingRequest, OnboardingResponse
 router = APIRouter(prefix="/api", tags=["Onboarding"])
 
 
-@router.post("/onboarding")
+@router.post(
+    "/onboarding",
+    response_model=OnboardingResponse,
+    summary="Diálogo de Onboarding",
+    description="Conversa passo a passo para cadastro das informações do produtor rural.",
+)
 def responder_onboarding(req: OnboardingRequest):
+
     if req.etapa == 1:
         return {
             "proximo_passo": 2,
