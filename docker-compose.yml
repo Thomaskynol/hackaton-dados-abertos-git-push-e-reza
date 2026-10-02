@@ -17,17 +17,40 @@ services:
     container_name: agropilot-api
     working_dir: /app
     volumes:
-      - ./back:/app
+      - ./back:/app:z
     ports:
       - "8000:8000"
     environment:
       - MONGO_URL=mongodb://mongo:27017
       - CORS_ORIGINS=*
-    command: >
-      sh -c "pip install -r requirements.txt --quiet &&
-             uvicorn app.main:app --host 0.0.0.0 --port 8000"
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+    command: sh -c "pip install --no-cache-dir -r requirements.txt --quiet && uvicorn app.main:app --host 0.0.0.0 --port 8000"
     depends_on:
       mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  web:
+    image: python:3.12-slim
+    container_name: agropilot-web
+    working_dir: /site
+    volumes:
+      - ./index.html:/site/index.html:ro,z
+      - ./scripts:/site/scripts:ro,z
+      - ./styles:/site/styles:ro,z
+      - ./hackathon:/site/hackathon:ro,z
+    ports:
+      - "8080:8080"
+    environment:
+      - AGROPILOT_API_URL=http://localhost:8000
+    command: python -m http.server 8080
+    depends_on:
+      api:
         condition: service_healthy
 
 volumes:

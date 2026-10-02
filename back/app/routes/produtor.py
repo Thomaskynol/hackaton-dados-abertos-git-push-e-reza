@@ -14,10 +14,19 @@ router = APIRouter(prefix="/api", tags=["Produtor"])
     description="Retorna os dados cadastrais, lavouras e preferências do produtor rural.",
 )
 def obter_produtor(id: str):
-    # Tenta buscar no MongoDB
+    # Tenta buscar no MongoDB por id ou telefone
     db = get_db()
     if db is not None:
-        doc = db.produtores.find_one({"id": id}, {"_id": 0})
+        clean_digits = "".join(filter(str.isdigit, id))
+        filtros = [{"id": id}, {"telefone": id}]
+        if clean_digits:
+            filtros.extend([
+                {"telefone": clean_digits},
+                {"telefone": f"+{clean_digits}"},
+                {"telefone": f"+55{clean_digits}"},
+                {"telefone": {"$regex": clean_digits}},
+            ])
+        doc = db.produtores.find_one({"$or": filtros}, {"_id": 0})
         if doc:
             return doc
 

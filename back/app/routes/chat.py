@@ -17,6 +17,7 @@ from ..mock import (
     MOCK_CHAT_CLIMA,
     MOCK_CHAT_SAUDACAO,
 )
+from ..llm import gerar_resposta
 
 router = APIRouter(prefix="/api", tags=["Chat"])
 
@@ -61,6 +62,41 @@ def _planejamento_real(mensagem: str):
         return None
 
 
+def _ctx_planejamento(base: dict) -> str:
+    d = base.get("dados") or {}
+    janelas = d.get("janelas") or []
+    janela_txt = ", ".join(f"dec {j.get('dec')} (risco {j.get('risco')}%)" for j in janelas)
+    return (
+        f"fonte: {base.get('fonte')}; cultura: {d.get('cultura')}; "
+        f"cod_ibge: {d.get('cod_ibge', IBGE_DEFAULT)}; solo: {d.get('solo')}; "
+        f"manejo: {d.get('manejo')}; janelas: {janela_txt or 'n/d'}; "
+        f"cultivares: {', '.join(d.get('cultivares') or []) or 'n/d'}"
+    )
+
+
+def _ctx_praga(base: dict) -> str:
+    d = base.get("dados") or {}
+    prods = d.get("produtos") or []
+    linhas = "; ".join(
+        f"{p.get('nome')} (classe {p.get('classe')}){' [ORGÂNICO]' if p.get('organico') else ''}"
+        for p in prods
+    )
+    return (
+        f"fonte: {base.get('fonte')}; cultura: {d.get('cultura')}; "
+        f"praga/alvo: {d.get('praga') or 'n/d'}; produtos: {linhas or 'n/d'}"
+    )
+
+
+def _com_llm(intencao: str, mensagem: str, base: dict, contexto: str) -> dict:
+    try:
+        texto = gerar_resposta(intencao, mensagem, contexto)
+    except Exception:
+        texto = None
+    if texto:
+        return {**base, "resposta": texto}
+    return base
+
+
 def _praga_real(mensagem: str):
     """Consulta Agrofit no MongoDB. Retorna None se sem dados → cai no mock."""
     try:
@@ -96,15 +132,17 @@ def _praga_real(mensagem: str):
     "/chat",
     response_model=Union[ChatResponseSuccess, ChatResponseError],
     summary="Processar mensagem de chat",
-    description="Classifica a intenção do produtor e retorna resposta com dados reais do MongoDB (Agrofit/ZARC) com fallback mock.",
+    description="Classifica a intenção do produtor e retorna resposta com dados reais do MongoDB (Agrofit/ZARC), RAG LLM (OpenRouter) e fallback mock.",
 )
 def processar_chat(req: ChatRequest):
     intencao = classificar_intencao(req.mensagem)
 
     if intencao == Intencao.PRAGA:
-        return _praga_real(req.mensagem) or MOCK_CHAT_PRAGA
+        base = _praga_real(req.mensagem) or MOCK_CHAT_PRAGA
+        return _com_llm("PRAGA", req.mensagem, base, _ctx_praga(base))
     elif intencao == Intencao.PLANEJAMENTO:
-        return _planejamento_real(req.mensagem) or MOCK_CHAT_PLANEJAMENTO
+        base = _planejamento_real(req.mensagem) or MOCK_CHAT_PLANEJAMENTO
+        return _com_llm("PLANEJAMENTO", req.mensagem, base, _ctx_planejamento(base))
     elif intencao == Intencao.CLIMA:
         return MOCK_CHAT_CLIMA
     elif intencao == Intencao.SAUDACAO:
