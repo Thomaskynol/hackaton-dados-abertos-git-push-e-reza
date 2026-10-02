@@ -1,4 +1,4 @@
-# 🌾 AgroPilot — Copiloto Agrícola 24/7 (Hackathon 2026)
+# AgroPilot — Copiloto Agrícola 24/7 (Hackathon 2026)
 
 > **"O pequeno produtor não pode errar. Ele não tem margem para errar."**
 
@@ -19,34 +19,18 @@ O **AgroPilot** é um copiloto agronômico 24/7 proativo e explicável, desenhad
 
 ## 🚀 Como Executar Localmente
 
-### 1. Backend (FastAPI)
-
-```bash
-cd back
-
-# Ative o ambiente virtual
-source .venv/bin/activate
-
-# Execute a API com reload automático
-uvicorn app.main:app --reload --port 8000
-
-# Documentação interativa Swagger:
-# http://localhost:8000/docs
-
-# Executar testes unitários e de contrato:
-pytest
-```
-
-### 2. Frontend (AgroPilot Copilot UI)
-
 Como foi construído em arquitetura web nativa (HTML5, Vanilla CSS com Design System AgTech e JavaScript ES6+), não há dependências pesadas de compilação:
 
 ```bash
-# Na raiz do projeto:
-python3 -m http.server 8080
-# ou simplesmente abra index.html no navegador
+# 1. Clone ou acesse a pasta do projeto
+cd /home/aluno/Downloads/hackthon
 
-# Acesse no navegador:
+# 2. Inicie o servidor local (Python ou Node)
+python3 -m http.server 8080
+# ou
+npx serve .
+
+# 3. Abra no navegador:
 # http://localhost:8080
 ```
 
@@ -55,7 +39,7 @@ python3 -m http.server 8080
 ## 📱 Funcionalidades do MVP Chatbot Clean 24/7
 
 ### 1. 💬 Chatbot Conversacional Clean & Minimalista (Foco Total na Conversa)
-- **Zero Poluição Visual:** Tela focada 100% no diálogo direto com o agricultor, como no WhatsApp.
+- **Zero Poluição Visual:** Removemos barras laterais pesadas e dashboards complexos. A tela é focada 100% no diálogo direto com o agricultor, como no WhatsApp ou ChatGPT.
 - **Barra Superior Discreta:** 
   - Logo sutil com indicador de pulso verde (*Online 24/7*).
   - Pílula central com o produtor ativo (*👤 Seu Sebastião • Soja • Rio Verde*), que abre um painel lateral deslizante (*Drawer*) sob demanda.
@@ -75,7 +59,11 @@ python3 -m http.server 8080
 - **🚜 Missões de Campo do Dia:** Checklists práticos de manejo (desobstrução de terraços, pano de batida, calibração de bicos).
 - **💰 Cotações Cepea/Conab & Canais de Venda:** Preços em tempo real e comparativo com compras públicas (PAA/PNAE merenda escolar com remuneração de até +7% a +10%).
 
-### 4. 🎮 Barra de Simulação para a Banca Avaliadora
+### 5. 💰 Mercado, Canais de Venda & Cotações
+- Preços em tempo real da saca de 60kg (Soja, Milho, Café Arábica, Feijão e Mandioca) via Cepea/Conab/B3.
+- Comparativo entre canais: **Cooperativa local**, **Programas Públicos (PAA / PNAE merenda escolar com +7% sobre mercado)** e **Cerealista Regional**.
+
+### 6. 🎮 Barra de Simulação para a Banca Avaliadora
 No topo da tela, botões interativos permitem disparar cenários reais em tempo real para demonstração:
 - ⛈️ **Temporal / Frente Fria (75mm em 24h)**
 - ❄️ **Risco de Geada (2.8°C na relva)**
@@ -83,35 +71,23 @@ No topo da tela, botões interativos permitem disparar cenários reais em tempo 
 - ⏳ **Janela ZARC Fechando em 6 dias**
 - ☀️ **Veranico / Estresse Hídrico no Enchimento de Grãos**
 
-### 5. ☀️ Modo Campo (Alto Contraste para Luz Solar)
+### 7. ☀️ Modo Campo (Alto Contraste para Luz Solar)
 - Alternância instantânea para paleta de alto contraste, ideal para uso direto sob o sol forte na roça.
 
 ---
 
-## 📂 Estrutura Integrada do Projeto
+## 📂 Estrutura de Arquivos
 
 ```
 hackthon/
-├── back/                       # Backend FastAPI (API REST)
-│   ├── app/
-│   │   ├── main.py             # Aplicação FastAPI e CORS
-│   │   ├── routes/             # Endpoints /api/chat, /api/health, /api/onboarding, /api/produtor, /api/alertas
-│   │   ├── schemas/            # Schemas Pydantic tipados
-│   │   ├── core/               # Regras de negócio e roteador de intenções
-│   │   └── mock.py             # Mock de dados para desacoplamento
-│   ├── tests/                  # Testes automatizados do contrato (pytest)
-│   └── pytest.ini              # Configuração de execução de testes
-├── docs/                       # Especificações e Dicionários
-│   ├── PRODUCT_SPEC.md         # Especificação de produto e filosofia
-│   └── dicionario-de-dados.md  # Dicionário oficial ZARC, Agrofit e SISSER
-├── index.html                  # Interface Web Copilot 24/7
+├── index.html              # Interface completa responsiva
 ├── styles/
-│   └── main.css                # Design System AgTech (Dark Mode e Modo Campo)
+│   └── main.css            # Design System AgTech (Dark Mode, Modo Campo, Glassmorphism)
 ├── scripts/
-│   ├── data.js                 # Base agronômica e ZARC
-│   ├── copilot-ai.js           # Motor de inteligência conversacional
-│   └── app.js                  # Controlador de UI e sintetizador de voz
-├── CONTRATO_API.md             # Contrato de API entre Front e Back
-├── INTEGRACAO_SISTEMA.md       # Relatório de integração do sistema
-└── README.md                   # Documentação geral do projeto
+│   ├── data.js             # Base agronômica (ZARC, solos AD1/AD2/AD3, alertas, missões, cotações)
+│   ├── copilot-ai.js       # Motor conversacional com regras agronômicas e explicabilidade
+│   └── app.js              # Controlador de UI, abas, áudio Web Audio API e simulações
+├── docs/
+│   └── PRODUCT_SPEC.md     # Documento de Definição de Produto (PRD) completo
+└── README.md               # Este guia de apresentação
 ```

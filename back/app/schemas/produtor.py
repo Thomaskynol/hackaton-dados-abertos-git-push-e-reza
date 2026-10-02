@@ -31,15 +31,9 @@ class ProdutorResponse(BaseModel):
     codigo_ibge: str
     municipio: str
     uf: str
-    lavouras: List[Lavoura] = []
-    preferencias: Optional[Preferencias] = None
-    criado_em: Optional[str] = None
-
-
-class ProdutorCreateResponse(BaseModel):
-    id: str
-    mensagem: str
-    ok: bool = True
+    lavouras: List[Lavoura]
+    preferencias: Preferencias
+    criado_em: str
 
 
 class OnboardingRequest(BaseModel):
@@ -52,4 +46,3 @@ class OnboardingResponse(BaseModel):
     proximo_passo: int
     pergunta: str
     perfil_parcial: Optional[Dict[str, Any]] = None
-

@@ -4,7 +4,7 @@ Ambas retornam None quando sem dados — o chamador cai no MOCK.
 """
 import re
 
-# alias mínimo medido (míldio da uva = Plasmopara viticola); ampliar quando nova cultura pedir
+# ponytail: alias mínimo medido (míldio da uva = Plasmopara viticola); ampliar quando nova cultura pedir
 PRAGA_ALIAS = {
     "mildio": "plasmopara",
     "míldio": "plasmopara",

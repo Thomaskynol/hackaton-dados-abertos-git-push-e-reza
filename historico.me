@@ -3,131 +3,95 @@
 **Repositório:** `Thomaskynol/hackaton-dados-abertos-sql-injection`  
 **Branch:** `caue-backend-mvp`  
 **Atualizado em:** 02 de Outubro de 2026  
-**Status:** Integrada com todas as branches (`main`, `correlacao-de-dados`, `gabriel/login`, `marcelo-integracao-sistema`), 17/17 testes de backend passando (100%), stack Docker unificada e sincronizada.
+**Status:** Totalmente sincronizada com `origin/main` (incluindo PR #1 de Zenon `feat/mapa-consultor-comercial` e `correlacao-de-dados`), 31/31 testes de backend passando (100%), stack Docker unificada e 48 testes de correlação validados.
 
 ---
 
 ## 1. Visão Geral da Branch
 
-A branch **`caue-backend-mvp`** é a espinha dorsal de infraestrutura e serviços do projeto **AgroPilot 24/7**. Ela unifica:
-1. **API REST FastAPI (Python 3.12)** com validação tipada via Pydantic e OpenAPI Swagger.
-2. **Integração Real ao MongoDB** com conexão resiliente lazy (`get_db()`) e consultas reais a coleções de dados abertos (`zarc`, `agrofit`, `produtores`, `municipios`).
-3. **Camada de IA Conversacional RAG via OpenRouter** (`xiaomi/mimo-v2.6-flash`), gerando respostas naturais estritamente embasadas nas evidências dos dados oficiais.
-4. **Resiliência e Degradação Graciosa**: Se a LLM estiver sem chave ou fora do ar, o sistema devolve templates estruturados com os dados reais do MongoDB; se o MongoDB estiver indisponível, devolve mocks determinísticos — **o sistema nunca quebra**.
-5. **Autenticação, Onboarding e Frontend Integrados**: Suporte completo às telas de login/cadastro (`hackathon/login/`), cliente HTTP de API (`scripts/api.js`) e interface conversacional com modo campo (`index.html`).
+A branch **`caue-backend-mvp`** reúne e consolida o ecossistema completo do **AgroPilot 24/7**:
+1. **API REST FastAPI (Python 3.12)** com OpenAPI Swagger, endpoints síncronos e **SSE Streaming (`/api/chat/stream`)**.
+2. **Camada Agêntica com Tool-Calling Real (`back/app/tools.py`)**: A LLM consulta o banco de dados MongoDB dinamicamente chamando 6 ferramentas especializadas:
+   * `buscar_municipio`: Resolve IBGE/nome/UF.
+   * `buscar_janelas_zarc`: Janelas de plantio e risco ZARC.
+   * `buscar_produtos_agrofit`: Defensivos e bioinsumos com filtros toxicológicos e orgânicos.
+   * `buscar_risco_psr`: Sinistralidade histórica do seguro rural.
+   * `buscar_area_sigef`: Lavouras e sementes declaradas.
+   * `buscar_irrigacao_ana`: Tipologia e infraestrutura de irrigação municipal.
+3. **OpenRouter LLM (`xiaomi/mimo-v2.6-flash`)** com fallback resiliente para templates locais determinísticos e dados mockados quando offline.
+4. **Novo Frontend Next.js 14 + Tailwind (`front/`) criado por Zenon (`ZenonPB` via PR #1):**
+   * **Mapa Interativo do Brasil** por UF com drill-down municipal GeoJSON (27 UFs em `front/public/geo/municipios/`).
+   * **Painel Regional de Insights Comerciais** e cotações CONAB/PGPM com links Cepea.
+   * **Assistente com suporte a áudio/voz**, texto e chips interativos contextualizados por UF.
+   * Telas de Safra, Radar de Evidências, Perguntas e Onboarding.
+5. **Frontend Chatbot 24/7 Clássico (`index.html`) e Login (`hackathon/login/`)**: Interface conversacional direta com modo campo e autenticação por telefone.
 
 ---
 
-## 2. Análise dos Documentos e Bases do Projeto (Leitura de Todos os `.md`)
-
-Todas as documentações do repositório em todas as branches foram analisadas para garantir que o backend atenda a 100% dos requisitos agronômicos, técnicos e legais:
-
-* **[docs/documento-mestre-agropilot.md](file:///home/aluno/Downloads/hackthon/docs/documento-mestre-agropilot.md)**:
-  * **O que o MVP prova:** Dado público vira evidência operacional; a IA tem função de linguagem e acolhimento, e não de decisão agronômica arbitrária.
-  * **O que o MVP NÃO é:** Não é chatbot genérico, não emite receita agronômica sem responsável técnico (Lei 14.785/2023, art. 39), não calcula probabilidade falsa de plantio.
-  * **Decisão ZARC:** Distinção entre "não zoneado" e "fora da janela"; janelas organizadas por decêndios com percentual de risco de perda (≤ 20% = janela recomendada).
-  * **Toxicológica Agrofit:** Normalização numérica das classes 1 a 5 (Cat 5 = 76,7% dos registros, Cat 1 = 920 registros).
-  * **Privacidade / LGPD (§9):** Nenhuma informação pessoal identificável (PII de segurados) é ingerida no banco de dados.
-
-* **[CONTRATO_API.md](file:///home/aluno/Downloads/hackthon/CONTRATO_API.md) & [arquitetura-front-and-end.md](file:///home/aluno/Downloads/hackthon/arquitetura-front-and-end.md)**:
-  * Define os endpoints canônicos: `POST /api/chat`, `POST /api/onboarding`, `GET /api/produtor/{id}`, `POST /api/produtor`, `GET /api/alertas/{id}`, `POST /api/alertas/simular`, `GET /api/health`.
-  * Define o enum de intenções: `PLANEJAMENTO`, `PRAGA`, `CLIMA`, `VENDA`, `PERFIL`, `SAUDACAO`, `NAO_ENTENDI`.
-
-* **[INTEGRACAO_SISTEMA.md](file:///home/aluno/Downloads/hackthon/INTEGRACAO_SISTEMA.md) & [docs/PRODUCT_SPEC.md](file:///home/aluno/Downloads/hackthon/docs/PRODUCT_SPEC.md)**:
-  * Especifica o design clean do chatbot AgroPilot 24/7, a linguagem empática para o agricultor familiar (*"Seu Sebastião"*), e a necessidade de modo campo de alto contraste para visibilidade sob luz solar direta.
-
-* **[relatorio-agricultura-familiar-dados-abertos.md](file:///home/aluno/Downloads/hackthon/relatorio-agricultura-familiar-dados-abertos.md)**:
-  * Apresenta dados estatísticos consolidados: 65,3% das apólices de seguro rural (SISSER 2016–2024) são de agricultores familiares (≤ 50 ha), mas correspondem a apenas 19,2% da área segurada.
-  * Seca responde por **52,2% dos sinistros no Brasil** (157.350 casos) e **67,0% dos sinistros de milho** (55.595 casos), justificando os alertas climáticos como missão central do sistema.
-
-* **[docs/dicionario-de-dados.md](file:///home/aluno/Downloads/hackthon/docs/dicionario-de-dados.md)**:
-  * Dicionário detalhado campo a campo dos 8 datasets governamentais abertos: Agrofit, ZARC, PSR/SISSER, Atlas Irrigação da ANA, SIPEAGRO e SIGEF.
-
----
-
-## 3. O Que Cada Parte do Backend Faz
+## 2. O Que Cada Parte do Backend Faz
 
 ```
 back/
 ├── app/
-│   ├── main.py                  # Ponto de entrada FastAPI, configuração CORS e rotas /api
+│   ├── main.py                  # Ponto de entrada FastAPI, CORS e inclusão de rotas /api
 │   ├── db.py                    # Conexão lazy singleton ao MongoDB (banco 'agropilot')
-│   ├── dados_reais.py           # Consultas reais ZARC (janelas) e Agrofit (defensivos/biológicos)
-│   ├── llm.py                   # [NOVO] Integração RAG OpenRouter com xiaomi/mimo-v2.6-flash
-│   ├── mock.py                  # Fallback offline estruturado (MOCK_CHAT_*, MOCK_PRODUTOR, etc.)
+│   ├── tools.py                 # [NOVO] 6 ferramentas agênticas de consulta direta ao Mongo
+│   ├── dados_reais.py           # Consultas determinísticas ZARC e Agrofit
+│   ├── llm.py                   # Loop agêntico de tool-calling + streaming OpenRouter
+│   ├── mock.py                  # Base mockada para fallback offline
 │   ├── core/
-│   │   ├── router_intencao.py   # Motor determinístico léxico de classificação de intenções
-│   │   └── templates.py         # [NOVO] Formatadores de mensagens no vocabulário do produtor
+│   │   ├── router_intencao.py   # Motor léxico de intenções agronômicas
+│   │   └── templates.py         # Formatadores de mensagens para agricultura familiar
 │   ├── routes/
-│   │   ├── health.py            # GET /api/health — status de liveness da API
-│   │   ├── chat.py              # POST /api/chat — RAG: Mongo Real + OpenRouter LLM + Fallback Mock
-│   │   ├── onboarding.py        # POST /api/onboarding — cadastro conversacional em 4 etapas
-│   │   ├── produtor.py          # GET/POST /api/produtor — busca por ID/Telefone e upsert no Mongo
-│   │   └── alertas.py           # GET/POST /api/alertas — consulta e simulação sob demanda para o pitch
+│   │   ├── health.py            # GET /api/health
+│   │   ├── chat.py              # POST /api/chat e POST /api/chat/stream (SSE)
+│   │   ├── onboarding.py        # POST /api/onboarding (4 etapas)
+│   │   ├── produtor.py          # GET/POST /api/produtor (leitura e gravação no Mongo)
+│   │   └── alertas.py           # GET/POST /api/alertas (simulações de risco)
 │   └── schemas/
-│       ├── chat.py              # Modelos Pydantic ChatRequest, ChatResponseSuccess, ChatResponseError
-│       ├── produtor.py          # Modelos ProdutorCreate, ProdutorResponse (com campos opcionais seguros)
-│       ├── alertas.py           # Modelos de alertas e simulação
-│       └── intencoes.py         # Enum tipado de intenções agrícolas
+│       ├── chat.py              # Schemas de chat e requisições
+│       ├── produtor.py          # Schemas de produtor, lavouras e onboarding
+│       ├── alertas.py           # Schemas de alertas
+│       └── intencoes.py         # Enum tipado de intenções
 ├── tests/
-│   ├── test_contrato.py         # 9 testes automatizados dos endpoints do contrato REST
-│   └── test_llm.py              # [NOVO] 8 testes automatizados da camada de LLM e RAG
+│   ├── test_contrato.py         # 9 testes dos endpoints do contrato
+│   ├── test_llm.py              # 8 testes da camada de LLM e mock HTTP
+│   ├── test_tools.py            # 7 testes das 6 tools e dispatch agêntico
+│   ├── test_stream.py           # 3 testes do endpoint SSE /api/chat/stream
+│   └── test_no_mock.py          # 4 testes verificando ausência de dados hardcoded
 ├── pytest.ini                   # pythonpath=. para execução direta de testes
-├── requirements.txt             # fastapi, uvicorn, pydantic, httpx, pymongo, pytest
-└── .env.example                 # Configurações de ambiente (MONGO_URL, OPENROUTER_API_KEY, CORS)
+├── requirements.txt             # Dependências da API
+└── .env.example                 # OPENROUTER_API_KEY, MONGO_URL, CORS_ORIGINS
 ```
 
 ---
 
-## 4. Integrações com as Outras Branches
-
-A branch `caue-backend-mvp` consolidou as melhores contribuições de cada ramo do repositório:
-
-| Branch de Origem | Conteúdo Integrado | O que faz no sistema |
-|---|---|---|
-| `origin/correlacao-de-dados` | `correlacao/` (scripts ETL), `back/app/llm.py`, `test_llm.py`, `docs/documento-mestre-agropilot.md`, `e2e/test_stack.py` | Pipeline de dados abertos para o MongoDB, IA conversacional e testes E2E |
-| `origin/gabriel/login` | `hackathon/login/` (`login.html`, `login.js`, `login.css`) | Tela moderna de autenticação por telefone e onboarding de cadastro |
-| `origin/marcelo-integracao-sistema` | `index.html`, `scripts/app.js`, `scripts/copilot-ai.js`, `styles/main.css` | Interface limpa e minimalista do chat AgroPilot 24/7 com modo campo |
-| `origin/main` | `CONTRATO_API.md`, `docs/dicionario-de-dados.md`, `db.py`, `dados_reais.py` | Modelagem canônica dos dados e contrato de integração |
-
----
-
-## 5. Testes Automatizados (17/17 Passando)
-
-O backend possui cobertura automatizada completa, executada com sucesso via `pytest`:
+## 3. Cobertura de Testes (31/31 Passando no Backend)
 
 ```bash
 $ cd back && .venv/bin/pytest -v
-======================== 17 passed, 1 warning in 0.58s =========================
+======================== 31 passed, 1 warning in 0.68s =========================
 ```
 
-* **9 Testes de Contrato (`tests/test_contrato.py`):**
-  * `test_health`: Validação do liveness check.
-  * `test_chat_praga`: Consulta de pragas (Agrofit).
-  * `test_chat_planejamento`: Consulta de plantio (ZARC).
-  * `test_chat_fallback`: Tratamento de mensagens não compreendidas.
-  * `test_onboarding`: Ciclo de 4 passos de onboarding.
-  * `test_get_produtor` & `test_post_produtor`: Obtenção e criação de perfil.
-  * `test_get_alertas` & `test_simular_alerta`: Listagem e disparo de alertas.
+* **Testes de Contrato (9 testes):** Health, Chat (Praga, Planejamento, Fallback), Onboarding, Produtor (GET/POST), Alertas (GET/POST).
+* **Testes de LLM (8 testes):** OpenRouter mockado, timeouts tratados, respostas sem chave tratadas.
+* **Testes de Tools (7 testes):** Schema das 6 ferramentas, dispatch no banco de dados e loop agêntico.
+* **Testes de Streaming (3 testes):** SSE emitindo `event: meta`, `event: delta` e `event: done`.
+* **Testes No-Mock (4 testes):** Verificação de chamadas dinâmicas sem dependência de mocks fixos.
 
-* **8 Testes da Camada de IA/LLM (`tests/test_llm.py`):**
-  * Ausência de chave não levanta exceção (`None`).
-  * Contexto vazio não consome API.
-  * Sucesso na chamada OpenRouter reescreve resposta.
-  * Falha HTTP ou timeout cai com segurança no fallback determinístico.
-  * Integração de injeção no endpoint de chat funcionando.
+Além disso, os **48 testes unitários da pasta `correlacao/`** rodam com 100% de sucesso.
 
 ---
 
-## 6. Como Executar a Stack Completa via Docker
+## 4. Como Subir o Sistema Completo via Docker
 
-O arquivo **`docker-compose.yml`** na raiz orquestra os 3 serviços essenciais:
+O [docker-compose.yml](file:///home/aluno/Downloads/hackthon/docker-compose.yml) na raiz sobe os serviços de banco, API e aplicação web:
 
 ```bash
-# Subir todo o ecossistema (MongoDB + FastAPI + Servidor Web):
+# Sobe MongoDB 7 + API FastAPI (com SSE e tools) + Servidor Web:
 docker compose up
 ```
 
-* **Serviço Web:** `http://localhost:8080` (Interface de Chat e Login)
-* **API FastAPI:** `http://localhost:8000` (Documentação interativa em `/docs`)
-* **MongoDB:** `mongodb://localhost:27017` (Banco `agropilot`)
+* **Web:** `http://localhost:8080` (Interface Web e Login)
+* **API REST & Swagger Docs:** `http://localhost:8000/docs`
+* **MongoDB:** `mongodb://localhost:27017`

@@ -1,13 +1,30 @@
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
 .venv/
+env/
 venv/
-.env
-node_modules/
-dist/
-.DS_Store
 .pytest_cache/
+
+# Node
+node_modules/
+.next/
+dist/
 
 # bases de dados locais — pesadas, não commitar
 base de dados/
 *.csv
+docs/dados/
+# saidas locais da ingestao — derivadas, pesadas
+correlacao/output/
+
+# macOS / IDE
+.DS_Store
+.vscode/
+.idea/
+
+# env locais (segredos)
+.env
+.env.local
+.env.*.local

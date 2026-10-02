@@ -6,6 +6,7 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+    # ponytail: no auth in local dev; backend/front join here
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
       interval: 10s
@@ -23,8 +24,10 @@ services:
     environment:
       - MONGO_URL=mongodb://mongo:27017
       - CORS_ORIGINS=*
+      # E.g.: OPENROUTER_API_KEY=sk-or-v1-... (never commit the real key)
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
-    command: sh -c "pip install --no-cache-dir -r requirements.txt --quiet && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    # ponytail: install deps at start; without this uvicorn exits and only mongo stays up
+    command: sh -c "pip install --no-cache-dir -r requirements.txt && uvicorn app.main:app --host 0.0.0.0 --port 8000"
     depends_on:
       mongo:
         condition: service_healthy
@@ -47,7 +50,9 @@ services:
     ports:
       - "8080:8080"
     environment:
+      # Browser-side wiring: front reads window.AGROPILOT_API_URL, falls back to http://localhost:8000 (see scripts/api.js)
       - AGROPILOT_API_URL=http://localhost:8000
+    # ponytail: stdlib http.server, no new deps; serves existing static files only
     command: python -m http.server 8080
     depends_on:
       api:
