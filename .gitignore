@@ -8,6 +8,6 @@ dist/
 .DS_Store
 
 # bases de dados locais — pesadas, não commitar
-base de dados/
+docs/dados/*
 # saidas locais da ingestao — derivadas, pesadas
 correlacao/output/
