@@ -73,11 +73,12 @@ $ cd back && .venv/bin/pytest -v
 ======================== 31 passed, 1 warning in 0.68s =========================
 ```
 
-* **Testes de Contrato (9 testes):** Health, Chat (Praga, Planejamento, Fallback), Onboarding, Produtor (GET/POST), Alertas (GET/POST).
-* **Testes de LLM (8 testes):** OpenRouter mockado, timeouts tratados, respostas sem chave tratadas.
-* **Testes de Tools (7 testes):** Schema das 6 ferramentas, dispatch no banco de dados e loop agêntico.
-* **Testes de Streaming (3 testes):** SSE emitindo `event: meta`, `event: delta` e `event: done`.
-* **Testes No-Mock (4 testes):** Verificação de chamadas dinâmicas sem dependência de mocks fixos.
+* **Testes de Contrato (9 testes em `test_contrato.py`):** Health, Chat (Praga, Planejamento, Fallback), Onboarding, Produtor (GET/POST), Alertas (GET/POST).
+* **Testes de LLM (8 testes em `test_llm.py`):** OpenRouter mockado, timeouts tratados, respostas sem chave tratadas.
+* **Testes de Tools (7 testes em `test_tools.py`):** Schema das 6 ferramentas, dispatch no banco de dados e loop agêntico.
+* **Testes de Streaming (3 testes em `test_stream.py`):** SSE emitindo `event: meta`, `event: delta` e `event: done`.
+* **Testes No-Mock (4 testes em `test_no_mock.py`):** Verificação de chamadas dinâmicas sem dependência de mocks fixos.
+* **Testes de NLP e Dados Reais (12 testes em `test_nlp_e_dados.py`):** Classificação das 7 intenções, normalização de culturas/pragas e queries ZARC/Agrofit.
 
 Além disso, os **48 testes unitários da pasta `correlacao/`** rodam com 100% de sucesso.
 
