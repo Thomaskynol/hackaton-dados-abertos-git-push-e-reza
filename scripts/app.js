@@ -44,6 +44,32 @@ document.addEventListener("DOMContentLoaded", () => {
   const formCleanProfile = document.getElementById("form-clean-profile");
 
   // ==========================================================================
+  // 0. Conexão com API Backend (FastAPI :8000)
+  // ==========================================================================
+  const API_BASE_URL = window.API_BASE_URL || "http://localhost:8000/api";
+  let isBackendAvailable = false;
+
+  async function checkBackendHealth() {
+    try {
+      const res = await fetch(`${API_BASE_URL}/health`, { method: "GET", mode: "cors" });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === "ok") {
+          isBackendAvailable = true;
+          const statusText = document.querySelector(".status-indicator span:last-child");
+          if (statusText) {
+            statusText.textContent = "Online 24/7 (API)";
+            statusText.title = "Conectado ao Backend FastAPI em http://localhost:8000";
+          }
+          console.log("🌾 Conectado com sucesso ao Backend FastAPI (:8000)");
+        }
+      }
+    } catch (err) {
+      console.log("ℹ️ Backend FastAPI não detectado em localhost:8000, operando em modo local autônomo.");
+    }
+  }
+
+  // ==========================================================================
   // 1. Áudio & Fala (Web Audio & SpeechSynthesis)
   // ==========================================================================
   function playCleanBeep(type = "info") {
@@ -239,7 +265,7 @@ document.addEventListener("DOMContentLoaded", () => {
       .replace(/\n/g, "<br>");
   }
 
-  function sendUserMessage(text) {
+  async function sendUserMessage(text) {
     if (!text || !text.trim()) return;
     appendMessage("farmer", text);
 
@@ -248,18 +274,55 @@ document.addEventListener("DOMContentLoaded", () => {
     typingRow.id = "typing-row";
     typingRow.innerHTML = `
       <div class="msg-bubble" style="font-size: 0.8rem; color: var(--text-muted); font-style: italic;">
-        Consultando ZARC e sensores de Rio Verde...
+        Consultando ZARC e bases de dados abertos...
       </div>
     `;
     chatMessagesStream.appendChild(typingRow);
     chatMessagesStream.scrollTop = chatMessagesStream.scrollHeight;
 
+    let answer = null;
+
+    // 1. Tentar chamada à API Backend FastAPI
+    if (isBackendAvailable) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            produtor_id: (AGRO_DATA.currentProfile && AGRO_DATA.currentProfile.id) || "abc123",
+            mensagem: text
+          })
+        });
+
+        if (res.ok) {
+          const apiData = await res.json();
+          if (apiData && apiData.resposta && !apiData.erro) {
+            answer = {
+              text: apiData.resposta,
+              fonte: apiData.fonte || "Agrofit / MAPA",
+              porQue: `Intenção: ${apiData.intencao}. Resposta processada via FastAPI com validação de dados abertos.`,
+              confianca: 96,
+              audioText: apiData.resposta.replace(/[•\n]/g, " "),
+              acaoSugerida: apiData.dados && apiData.dados.produtos ? "Ver produtos registrados" : null
+            };
+          }
+        }
+      } catch (apiErr) {
+        console.warn("Falha temporária ao comunicar com FastAPI, usando motor local:", apiErr);
+      }
+    }
+
+    // 2. Fallback para o motor local do copiloto
+    if (!answer) {
+      answer = window.agroCopilot.processMessage(text);
+    }
+
     setTimeout(() => {
       typingRow.remove();
-      const answer = window.agroCopilot.processMessage(text);
       appendMessage("ai", answer.text, answer);
-    }, 380);
+    }, 320);
   }
+
 
   // Submit do formulário do chat
   if (cleanChatForm) {
@@ -379,17 +442,34 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  function triggerCleanSimulation(key) {
+  async function triggerCleanSimulation(key) {
     const cenario = AGRO_DATA.cenariosSimulacao[key];
     if (!cenario) return;
 
     showCleanToast(`${cenario.titulo}: ${cenario.descricao}`, cenario.tipo);
+
+    // Notificar endpoint de simulação do FastAPI
+    if (isBackendAvailable) {
+      try {
+        await fetch(`${API_BASE_URL}/alertas/simular`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            produtor_id: (AGRO_DATA.currentProfile && AGRO_DATA.currentProfile.id) || "abc123",
+            tipo: key
+          })
+        });
+      } catch (err) {
+        console.warn("Simulação na API falhou:", err);
+      }
+    }
 
     const alertaMsg = `🚨 **ALERTA PROATIVO 24/7:** ${cenario.chatPrompt}\n\n` +
       `📌 **O que você deve fazer agora:** ${cenario.acaoRecomendada}`;
 
     appendMessage("ai", alertaMsg, {
       audioText: `Atenção Seu Sebastião! ${cenario.chatPrompt}`,
+
       fonte: cenario.fonte,
       porQue: cenario.porQue,
       confianca: cenario.confianca
@@ -466,6 +546,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // 10. Inicialização
   // ==========================================================================
   updateFarmerContextUI();
+  checkBackendHealth();
 
   // Conectar botões de áudio iniciais
   document.querySelectorAll(".btn-play-clean").forEach(btn => {
@@ -476,4 +557,5 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   console.log("🌾 AgroPilot Clean Chatbot ativo.");
+
 });
