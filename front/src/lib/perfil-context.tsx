@@ -1,9 +1,10 @@
 "use client";
 
 /**
- * Estado do perfil do produtor, persistido em localStorage.
- * ZERO integração com backend: tudo vive no dispositivo por enquanto.
- * Quando a API entrar, trocamos salvar()/carregar() por chamadas HTTP.
+ * Estado do perfil do produtor, persistido em localStorage como cache.
+ * `id` vem do backend (POST /api/produtor, upsert por telefone).
+ * `cod_ibge` SEMPRE vem da escolha no mapa (onboarding local step) —
+ * nunca default silencioso: vazio até o produtor tocar no município.
  */
 import {
   createContext,
@@ -17,14 +18,14 @@ import type { Perfil } from "./types";
 
 const CHAVE = "agropilot:perfil";
 
-/** Perfil inicial honesto: vazio, cidade sugerida da região do piloto. */
+/** Perfil inicial honesto: vazio, sem município silencioso. */
 const PERFIL_VAZIO: Perfil = {
   id: null,
   nome: "",
   telefone: "",
-  municipio: "Araraquara",
+  municipio: "",
   uf: "SP",
-  cod_ibge: "3503208",
+  cod_ibge: "",
   lavouras: [],
   onboardingConcluido: false,
 };

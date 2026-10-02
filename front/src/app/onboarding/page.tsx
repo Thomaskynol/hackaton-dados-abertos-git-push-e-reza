@@ -2,18 +2,24 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, ArrowLeft, Check } from "lucide-react";
+import { ArrowRight, ArrowLeft, MapPin } from "lucide-react";
 import { Button } from "@/components/Button";
 import { AudioButton } from "@/components/AudioButton";
+import { MapaBrasil } from "@/components/MapaBrasil";
 import { usePerfil, primeiroNome } from "@/lib/perfil-context";
-import { CULTURAS, SOLOS } from "@/lib/dados-locais";
+import { CULTURAS } from "@/lib/dados-locais";
+import { UFS, ufDoPerfil } from "@/lib/mapa-local";
+import { postProdutor } from "@/lib/api";
+import type { UFSigla } from "@/lib/types";
 
-type Passo = "nome" | "cidade" | "cultura" | "solo" | "fim";
-const ORDEM: Passo[] = ["nome", "cidade", "cultura", "solo", "fim"];
+type Passo = "nome" | "local" | "cultura" | "fim";
+const ORDEM: Passo[] = ["nome", "local", "cultura", "fim"];
 
 /**
  * Onboarding conversacional: UMA pergunta por tela. Barra de progresso,
  * botão voltar, "ouvir" em cada pergunta, escolhas visuais quando dá.
+ * Local = MapaBrasil (compacto) + UF: define {municipio, uf, cod_ibge}.
+ * Solo NUNCA perguntado — inferido no servidor via ZARC.
  */
 export default function Onboarding() {
   const router = useRouter();
@@ -21,11 +27,13 @@ export default function Onboarding() {
 
   const [passo, setPasso] = useState<Passo>("nome");
   const [nome, setNome] = useState(perfil.nome);
-  const [cidade, setCidade] = useState(
-    perfil.municipio ? `${perfil.municipio} - ${perfil.uf}` : "",
+  const [uf, setUf] = useState<UFSigla>(ufDoPerfil(perfil.uf));
+  const [municipio, setMunicipio] = useState<{ ibge: string; nome: string } | null>(
+    perfil.cod_ibge && perfil.municipio ? { ibge: perfil.cod_ibge, nome: perfil.municipio } : null,
   );
   const [cultura, setCultura] = useState(perfil.lavouras[0]?.cultura ?? "");
-  const [solo, setSolo] = useState(perfil.lavouras[0]?.solo ?? "");
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
   const indice = ORDEM.indexOf(passo);
   const progresso = useMemo(() => ((indice + 1) / ORDEM.length) * 100, [indice]);
@@ -43,38 +51,56 @@ export default function Onboarding() {
     setPasso(ORDEM[indice - 1]);
   }
 
-  function concluir() {
-    const [mun, uf] = cidade.split("-").map((s) => s.trim());
-    atualizar({
+  /** Persiste no backend (upsert por telefone) e guarda o id no perfil. */
+  async function concluir() {
+    if (!municipio || salvando) return;
+    setSalvando(true);
+    setErro(null);
+    const base = {
       nome,
-      municipio: mun || "Araraquara",
-      uf: (uf || "SP").toUpperCase(),
-      lavouras: [{ cultura, area_ha: null, solo, irrigacao: null }],
+      municipio: municipio.nome,
+      uf,
+      cod_ibge: municipio.ibge,
+      lavouras: [{ cultura, area_ha: null, solo: null, irrigacao: null }],
       onboardingConcluido: true,
-    });
-    router.push("/mapa");
+    };
+    try {
+      const criado = await postProdutor({
+        nome,
+        telefone: perfil.telefone,
+        municipio: municipio.nome,
+        uf,
+        cod_ibge: municipio.ibge,
+        cultura,
+      });
+      atualizar({ ...base, id: criado.id });
+    } catch {
+      // sem backend: segue local; sincroniza depois. Nada é inventado.
+      setErro("Sem conexão — salvamos no aparelho e sincronizamos depois.");
+      atualizar(base);
+    } finally {
+      setSalvando(false);
+      router.push("/mapa");
+    }
   }
 
   const perguntas: Record<Passo, string> = {
     nome: "Como posso te chamar?",
-    cidade: `Prazer, ${pn}! Em qual cidade fica sua terra?`,
+    local: `Prazer, ${pn}! Onde fica sua terra?`,
     cultura: "O que você planta ou quer plantar?",
-    solo: "Como é a terra do seu lote?",
     fim: `Tudo certo, ${pn}! Já posso te acompanhar.`,
   };
   const subtitulos: Record<Passo, string> = {
     nome: "Uma coisa de cada vez. Sem pressa.",
-    cidade: "Pode escrever cidade e estado, ex.: Araraquara - SP.",
+    local: "Escolha o estado e toque no seu município no mapa.",
     cultura: "Toque na que mais combina. Dá para mudar depois.",
-    solo: "Se não souber, escolha pela dica.",
     fim: "Você pode ajustar tudo isso quando quiser no seu perfil.",
   };
 
   const podeAvancar =
     (passo === "nome" && nome.trim().length >= 2) ||
-    (passo === "cidade" && cidade.trim().length >= 2) ||
-    (passo === "cultura" && !!cultura) ||
-    (passo === "solo" && !!solo);
+    (passo === "local" && municipio != null) ||
+    (passo === "cultura" && !!cultura);
 
   return (
     <main className="flex min-h-screen flex-col bg-canvas px-6 pb-10 pt-10">
@@ -122,14 +148,46 @@ export default function Onboarding() {
             />
           )}
 
-          {passo === "cidade" && (
-            <input
-              autoFocus
-              value={cidade}
-              onChange={(e) => setCidade(e.target.value)}
-              placeholder="Ex.: Araraquara - SP"
-              className="min-h-[60px] w-full rounded-xl2 border border-line bg-surface px-5 text-[1.2rem] text-ink shadow-soft outline-none focus:border-terra"
-            />
+          {passo === "local" && (
+            <div className="space-y-3">
+              <label htmlFor="uf-onboarding" className="text-[0.82rem] font-bold uppercase tracking-wide text-muted">
+                Estado (UF)
+              </label>
+              <div className="relative">
+                <MapPin size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden />
+                <select
+                  id="uf-onboarding"
+                  value={uf}
+                  onChange={(e) => {
+                    setUf(e.target.value as UFSigla);
+                    setMunicipio(null);
+                  }}
+                  className="min-h-[52px] w-full appearance-none rounded-xl2 border border-line bg-surface pl-10 pr-4 text-[1.05rem] font-semibold text-ink"
+                >
+                  {UFS.map((u) => (
+                    <option key={u.sigla} value={u.sigla}>
+                      {u.nome} ({u.sigla})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <MapaBrasil
+                selecionada={uf}
+                aoSelecionar={(nova) => {
+                  setUf(nova);
+                  setMunicipio(null);
+                }}
+                municipioIbge={municipio?.ibge ?? null}
+                aoSelecionarMunicipio={(ibge, nomeMun) => setMunicipio({ ibge, nome: nomeMun })}
+              />
+              {municipio ? (
+                <p className="rounded-xl2 border border-terra bg-terra-soft px-4 py-3 text-[0.95rem] font-bold text-terra-ink" role="status">
+                  {municipio.nome} · IBGE {municipio.ibge}
+                </p>
+              ) : (
+                <p className="text-[0.92rem] text-muted">Toque no estado para ver os municípios, depois toque no seu município.</p>
+              )}
+            </div>
           )}
 
           {passo === "cultura" && (
@@ -150,52 +208,32 @@ export default function Onboarding() {
             </div>
           )}
 
-          {passo === "solo" && (
-            <div className="space-y-3">
-              {SOLOS.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => setSolo(s.id)}
-                  aria-pressed={solo === s.id}
-                  className={`flex w-full items-center gap-4 rounded-xl2 border-2 bg-surface p-4 text-left shadow-soft transition ${
-                    solo === s.id ? "border-terra bg-terra-soft" : "border-line hover:border-terra"
-                  }`}
-                >
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-canvas text-xl" aria-hidden>
-                    🪨
-                  </span>
-                  <span>
-                    <span className="block font-bold text-ink">{s.nome}</span>
-                    <span className="block text-[0.92rem] text-muted">{s.dica}</span>
-                  </span>
-                  {solo === s.id && <Check size={22} className="ml-auto text-terra" />}
-                </button>
-              ))}
-            </div>
-          )}
-
           {passo === "fim" && (
             <div className="rounded-xl2 border border-line bg-surface p-5 shadow-soft">
               <Resumo rotulo="Nome" valor={nome} />
-              <Resumo rotulo="Cidade" valor={cidade} />
+              <Resumo rotulo="Cidade" valor={municipio ? `${municipio.nome} - ${uf}` : "—"} />
               <Resumo
                 rotulo="Cultura"
                 valor={CULTURAS.find((c) => c.id === cultura)?.nome ?? "—"}
               />
               <Resumo
-                rotulo="Terra"
-                valor={SOLOS.find((s) => s.id === solo)?.nome ?? "—"}
+                rotulo="Solo da sua região (ZARC)"
+                valor="Identificado pela sua região — sem pergunta"
                 ultimo
               />
             </div>
           )}
         </div>
 
+        {erro && passo === "fim" ? (
+          <p className="pt-3 text-[0.9rem] font-semibold text-muted" role="status">{erro}</p>
+        ) : null}
+
         {/* ação */}
         <div className="pt-6">
           {passo === "fim" ? (
-            <Button bloco onClick={concluir}>
-              Começar a usar <ArrowRight size={20} />
+            <Button bloco onClick={concluir} disabled={!municipio || salvando}>
+              {salvando ? "Salvando…" : "Começar a usar"} <ArrowRight size={20} />
             </Button>
           ) : (
             <Button bloco onClick={avancar} disabled={!podeAvancar}>
