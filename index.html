@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgroPilot 24/7 — Copiloto Agrícola</title>
+  <meta name="description" content="O copiloto agrícola 24/7 que mitiga erros do pequeno produtor. Acompanha da semente à venda com ZARC, alertas proativos e interface conversacional simples.">
+  
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+
+  <!-- 1. Minimal Top Navigation -->
+  <header class="clean-navbar">
+    <div class="nav-brand" id="brand-home" title="AgroPilot 24/7">
+      <div class="brand-dot-logo">🌾</div>
+      <div>
+        <div class="brand-name">AgroPilot</div>
+        <div class="status-indicator">
+          <span class="live-pulse-dot"></span>
+          <span>Online 24/7</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center Context Pill (Click to open Drawer) -->
+    <div class="nav-center-pill" id="btn-open-drawer-pill" title="Clique para ver detalhes da propriedade e ZARC">
+      <span>📍</span>
+      <span class="pill-strong" id="nav-farmer-name">Seu Sebastião</span>
+      <span>•</span>
+      <span id="nav-farmer-culture">Soja V4</span>
+      <span>•</span>
+      <span id="nav-farmer-city">Rio Verde - GO</span>
+      <span style="font-size: 0.65rem; color: var(--emerald-primary);">▾</span>
+    </div>
+
+    <!-- Right Actions -->
+    <div class="nav-actions">
+      <!-- Test Scenarios Dropdown for Judges (Discreet) -->
+      <div class="sim-dropdown-wrapper">
+        <button class="btn-clean" id="btn-toggle-sim-menu" title="Simular eventos meteorológicos e pragas">
+          <span>⚡ Simular</span>
+          <span style="font-size: 0.65rem;">▾</span>
+        </button>
+        <div class="sim-menu" id="sim-menu">
+          <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; padding: 0.25rem 0.5rem; text-transform: uppercase;">
+            Cenários de Teste (Banca):
+          </div>
+          <button class="sim-menu-item" data-scenario="chuva">
+            <span>⛈️</span> Frente Fria / Temporal 75mm
+          </button>
+          <button class="sim-menu-item" data-scenario="geada">
+            <span>❄️</span> Alerta de Geada 2.8°C
+          </button>
+          <button class="sim-menu-item" data-scenario="praga">
+            <span>🦗</span> Surto de Cigarrinha / Praga
+          </button>
+          <button class="sim-menu-item" data-scenario="janela_zarc">
+            <span>⏳</span> Janela ZARC Fechando
+          </button>
+          <button class="sim-menu-item" data-scenario="veranico">
+            <span>☀️</span> Seca / Veranico
+          </button>
+        </div>
+      </div>
+
+      <!-- Modo Campo (Luz Solar) -->
+      <button class="btn-clean btn-icon-only" id="btn-toggle-sunlight" title="Modo Campo: Alto Contraste para Luz Solar Forte">
+        ☀️
+      </button>
+
+      <!-- Menu Drawer Toggle -->
+      <button class="btn-clean btn-icon-only" id="btn-open-drawer" title="Menu e Informações da Gleba">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- 2. Main Centered Chat Canvas -->
+  <main class="clean-chat-canvas">
+    
+    <!-- Messages Scrollable Stream -->
+    <div class="messages-scrollable" id="chat-messages-stream">
+      
+      <!-- Initial Friendly Proactive Welcome -->
+      <div class="msg-row ai">
+        <div class="msg-bubble">
+          <p>Olá, <strong>Seu Sebastião</strong>! Sou o seu <strong>AgroPilot 24/7</strong>.</p>
+          <p style="margin-top: 0.4rem;">
+            Estou monitorando sua lavoura de <strong>Soja no solo AD3</strong> em Rio Verde. Como no pequeno produtor <strong>não há margem para errar</strong>, estou de olho no tempo e nas pragas dia e noite.
+          </p>
+          <p style="margin-top: 0.4rem; color: var(--amber);">
+            🌧️ <strong>Aviso de Hoje:</strong> Previsão de <strong>chuva forte (75mm)</strong> nas próximas 48h. Evite pulverizar defensivo hoje para não perder o produto e confira as saídas das curvas de nível.
+          </p>
+
+          <!-- Voice Note (WhatsApp style) -->
+          <div class="clean-voice-bar">
+            <button class="btn-play-clean" data-audio="Olá Seu Sebastião! Previsão de chuva forte de 75 milímetros em Rio Verde nas próximas 48 horas. Não pulverize nada hoje pra não perder veneno e confira as curvas de nível no talhão." title="Ouvir áudio">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            </button>
+            <div class="voice-wave">
+              <span class="wave-line" style="height: 6px;"></span>
+              <span class="wave-line" style="height: 12px;"></span>
+              <span class="wave-line" style="height: 16px;"></span>
+              <span class="wave-line" style="height: 8px;"></span>
+              <span class="wave-line" style="height: 14px;"></span>
+              <span class="wave-line" style="height: 10px;"></span>
+            </div>
+            <span style="font-size: 0.72rem; color: var(--text-secondary);">0:14 • Áudio do Copiloto</span>
+          </div>
+
+          <!-- Clean Explainability Tag -->
+          <div class="clean-explain-card">
+            <div class="explain-summary" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'">
+              <span>💡 Por que alertei você • 95% Confiança</span>
+              <span style="font-size: 0.65rem;">▾</span>
+            </div>
+            <div class="explain-details" style="display: none;">
+              Frente polar no radar CPTEC com saturação rápida do solo argiloso AD3. Fonte: INMET & ZARC MAPA Portaria 142/2024.
+            </div>
+          </div>
+
+          <div class="msg-timestamp">Hoje • ✓✓</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 3. Bottom Clean Input Area -->
+    <div class="clean-input-wrapper">
+      
+      <!-- Quick Suggestion Chips Carousel -->
+      <div class="clean-chips-bar">
+        <button class="clean-chip" data-prompt="Posso plantar semana que vem?">🌾 Posso plantar semana que vem?</button>
+        <button class="clean-chip" data-prompt="Vi uma lagarta na folha de soja">🐛 Vi uma lagarta na folha</button>
+        <button class="clean-chip" data-prompt="Vai chover forte nos próximos dias?">⛈️ Vai chover forte?</button>
+        <button class="clean-chip" data-prompt="Qual o preço da saca hoje e onde vender?">💰 Preço da saca hoje</button>
+        <button class="clean-chip" data-prompt="Qual semente comprar para a safra?">🌱 Qual semente comprar?</button>
+        <button class="clean-chip" data-prompt="Como funciona o seguro Proagro?">🛡️ Seguro Proagro</button>
+      </div>
+
+      <!-- Floating Capsule Form -->
+      <form id="clean-chat-form" class="clean-input-capsule">
+        <button type="button" class="btn-tool-input" id="btn-open-photo" title="Enviar Foto da Lavoura para Diagnóstico">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        </button>
+
+        <button type="button" class="btn-tool-input" id="btn-clean-mic" title="Gravar Áudio de Voz">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        </button>
+
+        <input type="text" id="clean-input-text" class="clean-input-field" placeholder="Pergunte ao AgroPilot (ou clique nos atalhos acima)..." autocomplete="off">
+
+        <button type="submit" class="btn-send-capsule" title="Enviar Mensagem">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </form>
+
+    </div>
+
+  </main>
+
+  <!-- ====================================================================
+       4. Slide-out Drawer: Minha Propriedade & ZARC (Clean on Demand)
+       ==================================================================== -->
+  <div class="drawer-backdrop" id="drawer-backdrop">
+    <div class="drawer-panel" id="drawer-panel">
+      
+      <div class="drawer-header">
+        <div>
+          <div class="drawer-title">Minha Propriedade & Safra</div>
+          <div style="font-size: 0.72rem; color: var(--text-secondary);">Dados ZARC, solo e monitoramento 24/7</div>
+        </div>
+        <button class="btn-close-drawer" id="btn-close-drawer">✕</button>
+      </div>
+
+      <!-- Card Gleba -->
+      <div class="clean-card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <strong id="drawer-farm-name" style="font-size: 1rem;">Sítio Bela Vista</strong>
+          <span class="clean-chip" style="font-size: 0.7rem; padding: 2px 8px; border-color: var(--emerald-primary); color: var(--emerald-primary);">
+            🌱 Soja Safra 2026/27
+          </span>
+        </div>
+        <div style="font-size: 0.78rem; color: var(--text-secondary);" id="drawer-farm-meta">
+          Rio Verde - GO • 14.5 hectares
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem; font-size: 0.75rem;">
+          <div style="background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: var(--radius-sm);">
+            <span style="color: var(--text-muted); display: block;">Solo (ZARC):</span>
+            <strong id="drawer-soil-val">AD3 Argiloso</strong>
+          </div>
+          <div style="background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: var(--radius-sm);">
+            <span style="color: var(--text-muted); display: block;">Seguro Proagro:</span>
+            <strong style="color: var(--emerald-primary);">✓ 100% Elegível</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resumo do ZARC Decendial -->
+      <div class="clean-card">
+        <strong style="font-size: 0.85rem;">📊 Janela ZARC Recomendada</strong>
+        <p style="font-size: 0.75rem; color: var(--text-secondary);">
+          Decêndio atual: <strong>Out/D3 a Nov/D2</strong> (Risco 20% - Janela Ideal). Plantar nesta janela garante cobertura total do Proagro.
+        </p>
+        <button class="btn-clean" id="btn-ask-zarc" style="width: fit-content; margin-top: 0.25rem;">
+          Consultar Janela Completa no Chat
+        </button>
+      </div>
+
+      <!-- Missões de Campo Rápidas -->
+      <div class="clean-card">
+        <strong style="font-size: 0.85rem;">🚜 Missões do Dia</strong>
+        <div style="font-size: 0.78rem; display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.25rem;">
+          <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+            <input type="checkbox" id="chk-missao-1">
+            <span>Vistoriar curvas de nível antes da chuva de 75mm</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+            <input type="checkbox" id="chk-missao-2">
+            <span>Amostragem com pano de batida para lagartas</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Cotações Rápidas -->
+      <div class="clean-card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <strong style="font-size: 0.85rem;">💰 Cotação Cepea (Saca 60kg)</strong>
+          <span style="font-weight: 800; color: var(--emerald-primary);">R$ 128,50</span>
+        </div>
+        <p style="font-size: 0.72rem; color: var(--text-muted);">
+          Edital PAA/PNAE da prefeitura pagando até R$ 138,00 (+7% para agricultura familiar).
+        </p>
+      </div>
+
+      <!-- Botão Alterar Cadastro -->
+      <button class="btn-clean" id="btn-open-edit-profile" style="justify-content: center; padding: 0.6rem;">
+        ⚙️ Editar Nome, Telefone e Gleba
+      </button>
+
+      <div style="font-size: 0.7rem; color: var(--text-muted); text-align: center; margin-top: auto;">
+        AgroPilot • Filosofia: O pequeno produtor não pode errar.
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Foto de Campo (Diagnóstico Visual) -->
+  <div class="drawer-backdrop" id="modal-photo-backdrop" style="align-items: center; justify-content: center;">
+    <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); max-width: 440px; width: 90%; padding: 1.5rem; box-shadow: var(--shadow-lg);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <div>
+          <strong style="font-size: 1.05rem;">📸 Diagnóstico por Foto</strong>
+          <p style="font-size: 0.75rem; color: var(--text-secondary);">Selecione o sintoma encontrado na lavoura:</p>
+        </div>
+        <button class="btn-close-drawer" id="btn-close-photo-modal">✕</button>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+        <button class="sim-menu-item btn-choose-photo" data-photo="lagarta" style="border: 1px solid var(--border-subtle);">
+          <span style="font-size: 1.4rem;">🐛</span>
+          <div>
+            <strong>Lagarta na Folha</strong>
+            <div style="font-size: 0.7rem; color: var(--text-secondary);">Identificação MIP e medição de desfolha</div>
+          </div>
+        </button>
+
+        <button class="sim-menu-item btn-choose-photo" data-photo="ferrugem" style="border: 1px solid var(--border-subtle);">
+          <span style="font-size: 1.4rem;">🍂</span>
+          <div>
+            <strong>Pontos Escuros (Ferrugem)</strong>
+            <div style="font-size: 0.7rem; color: var(--text-secondary);">Alerta fitossanitário preventivo</div>
+          </div>
+        </button>
+
+        <button class="sim-menu-item btn-choose-photo" data-photo="clorose" style="border: 1px solid var(--border-subtle);">
+          <span style="font-size: 1.4rem;">🌱</span>
+          <div>
+            <strong>Folha Amarela (Clorose)</strong>
+            <div style="font-size: 0.7rem; color: var(--text-secondary);">Deficiência nutricional no solo AD3</div>
+          </div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Editar Perfil -->
+  <div class="drawer-backdrop" id="modal-profile-backdrop" style="align-items: center; justify-content: center;">
+    <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); max-width: 440px; width: 90%; padding: 1.5rem; box-shadow: var(--shadow-lg);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <strong style="font-size: 1.05rem;">Cadastro do Produtor</strong>
+        <button class="btn-close-drawer" id="btn-close-profile-modal">✕</button>
+      </div>
+
+      <form id="form-clean-profile" style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <div>
+          <label style="font-size: 0.75rem; color: var(--text-secondary); display: block; margin-bottom: 0.2rem;">Nome Completo:</label>
+          <input type="text" id="prof-nome" class="clean-input-capsule" style="width: 100%; border-radius: var(--radius-sm);" value="Seu Sebastião da Silva" required>
+        </div>
+        <div>
+          <label style="font-size: 0.75rem; color: var(--text-secondary); display: block; margin-bottom: 0.2rem;">Telefone (WhatsApp):</label>
+          <input type="tel" id="prof-telefone" class="clean-input-capsule" style="width: 100%; border-radius: var(--radius-sm);" value="(64) 99821-4472" required>
+        </div>
+        <div>
+          <label style="font-size: 0.75rem; color: var(--text-secondary); display: block; margin-bottom: 0.2rem;">Município - Estado:</label>
+          <input type="text" id="prof-municipio" class="clean-input-capsule" style="width: 100%; border-radius: var(--radius-sm);" value="Rio Verde - GO" required>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem;">
+          <button type="button" class="btn-clean" id="btn-cancel-profile">Cancelar</button>
+          <button type="submit" class="btn-clean" style="background: var(--emerald-primary); color: white; border-color: var(--emerald-primary);">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="clean-toast-container" id="clean-toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="scripts/data.js"></script>
+  <script src="scripts/copilot-ai.js"></script>
+  <script src="scripts/app.js"></script>
+</body>
+</html>
