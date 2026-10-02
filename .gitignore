@@ -9,3 +9,5 @@ dist/
 
 # bases de dados locais — pesadas, não commitar
 base de dados/
+# saidas locais da ingestao — derivadas, pesadas
+correlacao/output/

@@ -1,0 +1,17 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: agropilot-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    # ponytail: sem auth no dev local; backend/front entram aqui no merge
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mongo_data:
