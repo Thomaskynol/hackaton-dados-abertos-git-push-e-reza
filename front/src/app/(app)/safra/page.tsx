@@ -1,14 +1,22 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { MessageCircle, Bell, ChevronRight, Sprout, CloudSun } from "lucide-react";
 import { AudioButton } from "@/components/AudioButton";
-import { usePerfil, primeiroNome } from "@/lib/perfil-context";
+import { precisaOnboarding, usePerfil, primeiroNome } from "@/lib/perfil-context";
 import { CULTURAS, alertasDemo } from "@/lib/dados-locais";
 
 /** Minha Safra (início): o produtor vê o essencial do dia em um relance. */
 export default function Safra() {
+  const router = useRouter();
   const { perfil, carregado } = usePerfil();
+
+  useEffect(() => {
+    if (precisaOnboarding(perfil, carregado)) router.replace("/onboarding");
+  }, [perfil, carregado, router]);
+
   if (!carregado) return null;
 
   const pn = primeiroNome(perfil.nome);

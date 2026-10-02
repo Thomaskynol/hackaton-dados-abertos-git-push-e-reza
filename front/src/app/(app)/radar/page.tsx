@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { EvidenceCard } from "@/components/EvidenceCard";
 import { AudioButton } from "@/components/AudioButton";
-import { usePerfil } from "@/lib/perfil-context";
+import { precisaOnboarding, usePerfil } from "@/lib/perfil-context";
 import { CULTURAS, evidenciasDemo } from "@/lib/dados-locais";
 
 /**
@@ -10,7 +12,13 @@ import { CULTURAS, evidenciasDemo } from "@/lib/dados-locais";
  * 4 estados honestos. Nunca "score 90%".
  */
 export default function RadarPage() {
+  const router = useRouter();
   const { perfil, carregado } = usePerfil();
+
+  useEffect(() => {
+    if (precisaOnboarding(perfil, carregado)) router.replace("/onboarding");
+  }, [perfil, carregado, router]);
+
   if (!carregado) return null;
 
   const cultura = CULTURAS.find((c) => c.id === perfil.lavouras[0]?.cultura);

@@ -1,16 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { MapPin, TrendingUp, ExternalLink, ArrowRight } from "lucide-react";
 import { AudioButton } from "@/components/AudioButton";
-import { usePerfil } from "@/lib/perfil-context";
+import { precisaOnboarding, usePerfil } from "@/lib/perfil-context";
 import { UFS, canaisDaUF, ufDoPerfil } from "@/lib/mapa-local";
 import { formatarPreco, precosDaUF, rotuloCultura } from "@/lib/precos";
 import type { UFSigla } from "@/lib/types";
 
 /** Aba Preços: consultor comercial em lista — preço + piso + canais por UF. */
 export default function PrecosPage() {
+  const router = useRouter();
   const { perfil, carregado } = usePerfil();
   const ufPerfil = ufDoPerfil(perfil.uf);
   const culturaId = perfil.lavouras[0]?.cultura ?? null;
@@ -19,6 +21,10 @@ export default function PrecosPage() {
   const precos = useMemo(() => precosDaUF(uf, culturaId), [uf, culturaId]);
   const canais = useMemo(() => canaisDaUF(uf), [uf]);
   const cultura = rotuloCultura(culturaId);
+
+  useEffect(() => {
+    if (precisaOnboarding(perfil, carregado)) router.replace("/onboarding");
+  }, [perfil, carregado, router]);
 
   if (!carregado) return null;
 

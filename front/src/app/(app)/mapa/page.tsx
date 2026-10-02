@@ -1,13 +1,13 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { MapPin, LocateFixed, MessageCircle, TrendingUp } from "lucide-react";
 import { AudioButton } from "@/components/AudioButton";
 import { MapaBrasil } from "@/components/MapaBrasil";
 import { PainelRegional } from "@/components/PainelRegional";
-import { usePerfil } from "@/lib/perfil-context";
+import { precisaOnboarding, usePerfil } from "@/lib/perfil-context";
 import { UFS, insightsDaUF, infoDaUF, ufDoPerfil } from "@/lib/mapa-local";
 import { precosDaUF, rotuloCultura } from "@/lib/precos";
 import { getRegiao } from "@/lib/api";
@@ -100,10 +100,16 @@ export default function MapaPage() {
 
 function ConteudoMapa() {
   const params = useSearchParams();
+  const router = useRouter();
   const ufParam = (params.get("uf") ?? "").toUpperCase();
   const { perfil, carregado } = usePerfil();
   const ufPerfil = ufDoPerfil(perfil.uf);
   const culturaId = perfil.lavouras[0]?.cultura ?? null;
+
+  // conta com onboarding pendente força /onboarding; sem id segue offline honesto
+  useEffect(() => {
+    if (precisaOnboarding(perfil, carregado)) router.replace("/onboarding");
+  }, [perfil, carregado, router]);
 
   // Estado inicial sempre neutro (SSR == 1º render cliente). O ?uf= entra via
   // efeito após montar — evita mismatch de hidratação.

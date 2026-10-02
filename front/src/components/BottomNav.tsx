@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Map, Tag, Home, MessagesSquare } from "lucide-react";
+import { Map, Tag, Home, MessagesSquare, User } from "lucide-react";
 
 const ABAS = [
   { href: "/mapa", rotulo: "Mapa", Icone: Map },
   { href: "/precos", rotulo: "Preços", Icone: Tag },
   { href: "/safra", rotulo: "Minha Safra", Icone: Home },
   { href: "/assistente", rotulo: "Assistente", Icone: MessagesSquare },
+  { href: "/conta", rotulo: "Conta", Icone: User },
 ] as const;
 
 /** Navegação principal — Mapa primeiro (carro-chefe), Assistente por último (apoio). */

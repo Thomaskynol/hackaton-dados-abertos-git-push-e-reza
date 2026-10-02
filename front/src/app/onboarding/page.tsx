@@ -9,7 +9,7 @@ import { MapaBrasil } from "@/components/MapaBrasil";
 import { usePerfil, primeiroNome } from "@/lib/perfil-context";
 import { CULTURAS } from "@/lib/dados-locais";
 import { UFS, ufDoPerfil } from "@/lib/mapa-local";
-import { postProdutor } from "@/lib/api";
+import { patchConta, postProdutor } from "@/lib/api";
 import type { UFSigla } from "@/lib/types";
 
 type Passo = "nome" | "local" | "cultura" | "fim";
@@ -51,13 +51,14 @@ export default function Onboarding() {
     setPasso(ORDEM[indice - 1]);
   }
 
-  /** Persiste no backend (upsert por telefone) e guarda o id no perfil. */
+  /** Persiste no backend e marca onboardingConcluido (local + PATCH quando há id). */
   async function concluir() {
     if (!municipio || salvando) return;
     setSalvando(true);
     setErro(null);
     const base = {
       nome,
+      telefone: perfil.telefone,
       municipio: municipio.nome,
       uf,
       cod_ibge: municipio.ibge,
@@ -65,15 +66,33 @@ export default function Onboarding() {
       onboardingConcluido: true,
     };
     try {
-      const criado = await postProdutor({
-        nome,
-        telefone: perfil.telefone,
-        municipio: municipio.nome,
-        uf,
-        cod_ibge: municipio.ibge,
-        cultura,
-      });
-      atualizar({ ...base, id: criado.id });
+      if (perfil.id) {
+        const c = await patchConta(perfil.id, {
+          nome,
+          municipio: municipio.nome,
+          uf,
+          cod_ibge: municipio.ibge,
+          codigo_ibge: municipio.ibge,
+          lavouras: [{ cultura, area_ha: null }],
+          onboardingConcluido: true,
+        });
+        atualizar({
+          ...base,
+          id: c.id,
+          telefone: perfil.telefone || c.telefone,
+          cod_ibge: c.cod_ibge || municipio.ibge,
+        });
+      } else {
+        const criado = await postProdutor({
+          nome,
+          telefone: perfil.telefone,
+          municipio: municipio.nome,
+          uf,
+          cod_ibge: municipio.ibge,
+          cultura,
+        });
+        atualizar({ ...base, id: criado.id });
+      }
     } catch {
       // sem backend: segue local; sincroniza depois. Nada é inventado.
       setErro("Sem conexão — salvamos no aparelho e sincronizamos depois.");

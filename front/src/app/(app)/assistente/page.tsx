@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { Plus, History } from "lucide-react";
 import { ChatBubble } from "@/components/ChatBubble";
 import { ChatInput } from "@/components/ChatInput";
 import { Chip } from "@/components/Chip";
-import { usePerfil, primeiroNome } from "@/lib/perfil-context";
+import { usePerfil, precisaOnboarding, primeiroNome } from "@/lib/perfil-context";
 import { SUGESTOES_CHAT, responderLocal } from "@/lib/dados-locais";
 import { infoDaUF } from "@/lib/mapa-local";
 import {
@@ -99,6 +99,7 @@ export default function Assistente() {
 
 function ConteudoAssistente() {
   const params = useSearchParams();
+  const router = useRouter();
   const ufCtx = (params.get("uf") ?? "").toUpperCase();
   const { perfil, carregado } = usePerfil();
   const nome = perfil.nome || "produtor";
@@ -112,6 +113,10 @@ function ConteudoAssistente() {
   const fimRef = useRef<HTMLDivElement>(null);
 
   const produtorId = perfil.id || perfil.telefone || "";
+
+  useEffect(() => {
+    if (precisaOnboarding(perfil, carregado)) router.replace("/onboarding");
+  }, [perfil, carregado, router]);
 
   function saudacao(): Msg {
     const info = infoDaUF(ufCtx);
