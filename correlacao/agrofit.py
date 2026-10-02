@@ -166,7 +166,7 @@ def main():
                         "CULTURA", "PRAGA_NOME_CIENTIFICO", "CLASSE_TOXICOLOGICA",
                         "ORGANICOS", "SITUACAO"],
         "limitations": [
-            "rotulos compostos ('Categoria 4 - ...') -> classe_toxicologica null (contrato tox_numerica)",
+            "rotulos 'Nao Classificado...' -> classe_toxicologica null; 'Categoria N - ...' -> N (regex tox_numerica)",
             "tecnicos sem cultura/praga/organicos/situacao -> null",
             "sem geo: join por cultura_canonica + praga_cientifica",
         ],
