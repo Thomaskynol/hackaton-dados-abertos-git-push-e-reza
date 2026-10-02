@@ -57,5 +57,30 @@ services:
       api:
         condition: service_healthy
 
+  seed:
+    image: mongo:7
+    container_name: agropilot-seed
+    volumes:
+      - ./seed:/seed:z
+    environment:
+      - SEED_URL=${SEED_URL:-https://github.com/Thomaskynol/hackaton-dados-abertos-sql-injection/releases/download/dados-v1/agropilot.gz}
+    # ponytail: one-shot; baixa asset só se ausente, restaura só se vazio, sai 0
+    command: >
+      bash -c "
+        set -e;
+        if [ ! -s /seed/agropilot.gz ]; then
+          apt-get update -qq && apt-get install -y -qq curl >/dev/null &&
+          curl -fL -o /seed/agropilot.gz \"$$SEED_URL\";
+        fi;
+        COUNT=$$(mongosh --quiet --host mongo --eval 'try { print(db.getSiblingDB(\"agropilot\").stats().objects) } catch (e) { print(0) }' | tr -cd '0-9');
+        if [ \"$${COUNT:-0}\" -gt 0 ]; then echo \"SKIP: agropilot already has $$COUNT objects\"; exit 0; fi;
+        mongorestore --host mongo --gzip --archive=/seed/agropilot.gz;
+        echo RESTORED;
+      "
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: "no"
+
 volumes:
   mongo_data:
