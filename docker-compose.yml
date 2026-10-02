@@ -38,22 +38,19 @@ services:
       retries: 5
       start_period: 30s
 
-  web:
-    image: python:3.12-slim
-    container_name: agropilot-web
-    working_dir: /site
+  front:
+    image: node:20-slim
+    container_name: agropilot-front
+    working_dir: /front
     volumes:
-      - ./index.html:/site/index.html:ro,z
-      - ./scripts:/site/scripts:ro,z
-      - ./styles:/site/styles:ro,z
-      - ./hackathon:/site/hackathon:ro,z
+      - ./front:/front:z
     ports:
-      - "8080:8080"
+      - "3000:3000"
     environment:
-      # Browser-side wiring: front reads window.AGROPILOT_API_URL, falls back to http://localhost:8000 (see scripts/api.js)
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
       - AGROPILOT_API_URL=http://localhost:8000
-    # ponytail: stdlib http.server, no new deps; serves existing static files only
-    command: python -m http.server 8080
+    # ponytail: install at start so no node_modules commit; build+start prod, fallback dev
+    command: sh -c "npm install && (npm run build && npm start -- -p 3000 -H 0.0.0.0 || npm run dev -- -p 3000 -H 0.0.0.0)"
     depends_on:
       api:
         condition: service_healthy

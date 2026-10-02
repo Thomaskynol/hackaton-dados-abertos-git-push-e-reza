@@ -7,7 +7,7 @@ import urllib.request
 import pytest
 
 API = os.getenv("AGROPILOT_API_URL", "http://localhost:8000")
-WEB = os.getenv("AGROPILOT_WEB_URL", "http://localhost:8080")
+WEB = os.getenv("AGROPILOT_WEB_URL", "http://localhost:3000")
 TIMEOUT = int(os.getenv("AGROPILOT_TIMEOUT_S", "60"))
 
 
@@ -54,4 +54,4 @@ def test_chat_praga():
 def test_web_serves_front():
     status, body = _get(f"{WEB}/")
     assert status == 200
-    assert "scripts/api.js" in body
+    assert "AgroPilot" in body
