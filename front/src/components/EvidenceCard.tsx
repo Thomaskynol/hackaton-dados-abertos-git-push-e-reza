@@ -21,7 +21,7 @@ export function EvidenceCard({ evidencia }: { evidencia: Evidencia }) {
   const { Icone, fonte } = { Icone: m.Icone, fonte: evidencia.fonte };
 
   return (
-    <article className="relative overflow-hidden rounded-xl2 border border-line bg-surface shadow-soft">
+    <article className="relative overflow-hidden rounded-xl2 border border-line bg-surface shadow-soft card-hover transition-all">
       <span className={`absolute left-0 top-0 h-full w-1.5 ${m.faixa}`} aria-hidden />
       <div className="p-4 pl-5">
         <div className="flex items-center gap-2">

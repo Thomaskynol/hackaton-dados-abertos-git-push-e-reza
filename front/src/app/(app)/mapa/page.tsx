@@ -24,18 +24,22 @@ function ConsultorComercial({ uf, culturaId, precos }: { uf: UFSigla; culturaId:
     ? `Cenário comercial de ${cultura} em ${uf}, com fonte e data abaixo.`
     : `Na sua região (${uf}), ${cultura} ainda está sem cotação disponível (CONAB a conectar). O piso PGPM aparece quando confirmado. Nada aqui é ordem de venda.`;
   return (
-    <section aria-label="Consultor comercial" className="relative overflow-hidden rounded-xl2 border border-line bg-surface p-4 shadow-card">
-      <span className="absolute left-0 top-0 h-full w-1.5 bg-terra" aria-hidden />
+    <section aria-label="Consultor comercial" className="relative overflow-hidden rounded-xl2 border border-line bg-surface p-4 sm:p-5 shadow-card card-hover">
+      <span className="absolute left-0 top-0 h-full w-1.5 bg-gradient-to-b from-amber-500 to-terra" aria-hidden />
       <div className="flex items-center justify-between gap-3">
-        <span className="inline-flex items-center gap-2 rounded-full bg-terra-soft px-3 py-1 text-[0.78rem] font-bold uppercase tracking-wide text-terra-ink">
-          <TrendingUp size={15} aria-hidden /> Consultor comercial
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-terra-soft px-3 py-1 text-[0.78rem] font-bold uppercase tracking-wide text-terra-ink">
+          <TrendingUp size={15} aria-hidden /> Consultor comercial inteligente
         </span>
         <AudioButton texto={texto} />
       </div>
-      <p className="mt-2 text-[1.02rem] text-ink">{texto}</p>
-      <p className="mt-1 text-[0.82rem] text-muted">
-        Fonte: {mercado?.fonte.nome ?? "CONAB"} · {mercado?.fonte.periodo ?? mercado?.data ?? "aguardando ingestão"} · Região: {info?.nome} ({uf})
-      </p>
+      <p className="mt-2.5 text-[1.05rem] font-medium leading-relaxed text-ink">{texto}</p>
+      <div className="mt-2.5 flex flex-wrap items-center gap-2 pt-2 border-t border-line/60 text-[0.8rem] text-muted">
+        <span>Fonte: <strong className="text-ink font-semibold">{mercado?.fonte.nome ?? "CONAB"}</strong></span>
+        <span>·</span>
+        <span>{mercado?.fonte.periodo ?? mercado?.data ?? "aguardando ingestão"}</span>
+        <span>·</span>
+        <span>Região: <strong className="text-ink font-semibold">{info?.nome} ({uf})</strong></span>
+      </div>
     </section>
   );
 }
@@ -155,83 +159,119 @@ function ConteudoMapa() {
     "Toque num estado para dar zoom e ver os municípios. Toque num município para ver o cenário da região: preço, solo, produção, seguro, irrigação e canais. Tudo com fonte. Nada aqui é ordem de venda.";
 
   return (
-    <div className="space-y-4">
-      <section>
-        <div className="flex items-start justify-between gap-3">
+    <div className="space-y-6">
+      {/* Cabeçalho do Carro-Chefe */}
+      <section className="rounded-2xl border border-line bg-surface/60 p-4 sm:p-6 backdrop-blur shadow-soft">
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-[0.8rem] font-bold uppercase tracking-wide text-terra-ink">
-              Carro-chefe · consultor comercial
-            </p>
-            <h1 className="font-display text-[1.6rem] font-extrabold leading-tight text-ink">
-              Mapa de oportunidade
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-terra-soft px-3 py-0.5 text-[0.75rem] font-extrabold uppercase tracking-wide text-terra-ink">
+                Inteligência Territorial & Comercial
+              </span>
+              <span className="hidden sm:inline-block h-1.5 w-1.5 rounded-full bg-terra/40" />
+              <span className="hidden sm:inline-block text-[0.8rem] font-semibold text-muted">
+                ZARC · SIGEF · PSR · CONAB
+              </span>
+            </div>
+            <h1 className="mt-1.5 font-display text-2xl sm:text-3xl font-extrabold leading-tight text-ink">
+              Mapa de Oportunidades Agrícolas
             </h1>
+            <p className="mt-2 max-w-3xl text-[0.96rem] leading-relaxed text-muted">{intro}</p>
           </div>
-          <AudioButton texto={intro} />
+          <div className="shrink-0 pt-1">
+            <AudioButton texto={intro} />
+          </div>
         </div>
-        <p className="mt-1 text-muted">{intro}</p>
       </section>
 
-      <ConsultorComercial uf={selecionada} culturaId={culturaId} precos={resumo.precos} />
+      {/* Grid Principal: 2 colunas no Desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Coluna Esquerda: Consultor, Filtro de Estado e Mapa */}
+        <div className="lg:col-span-7 xl:col-span-7 space-y-4">
+          <ConsultorComercial uf={selecionada} culturaId={culturaId} precos={resumo.precos} />
 
-      <section aria-label="Escolher estado" className="space-y-2">
-        <label htmlFor="seletor-uf" className="text-[0.82rem] font-bold uppercase tracking-wide text-muted">
-          Estado (UF)
-        </label>
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <MapPin size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden />
-            <select
-              id="seletor-uf"
-              value={selecionada}
-              onChange={(e) => setUf(e.target.value as UFSigla)}
-              className="min-h-[52px] w-full appearance-none rounded-xl2 border border-line bg-surface pl-10 pr-4 text-[1.05rem] font-semibold text-ink"
-            >
-              {UFS.map((u) => (
-                <option key={u.sigla} value={u.sigla}>
-                  {u.nome} ({u.sigla})
-                </option>
-              ))}
-            </select>
+          <section aria-label="Escolher estado" className="rounded-xl2 border border-line bg-surface p-3.5 shadow-soft space-y-2">
+            <div className="flex items-center justify-between">
+              <label htmlFor="seletor-uf" className="text-[0.8rem] font-bold uppercase tracking-wide text-muted">
+                Navegar por Estado (UF)
+              </label>
+              <span className="text-[0.78rem] font-semibold text-terra-ink">
+                {UFS.length} estados disponíveis
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <MapPin size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden />
+                <select
+                  id="seletor-uf"
+                  value={selecionada}
+                  onChange={(e) => setUf(e.target.value as UFSigla)}
+                  className="min-h-[50px] w-full appearance-none rounded-xl border border-line bg-canvas pl-10 pr-4 text-[1rem] font-semibold text-ink transition focus:border-terra outline-none"
+                >
+                  {UFS.map((u) => (
+                    <option key={u.sigla} value={u.sigla}>
+                      {u.nome} ({u.sigla})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {uf !== null && uf !== ufPerfil ? (
+                <button
+                  onClick={() => setUf(null)}
+                  className="inline-flex min-h-[50px] items-center gap-1.5 rounded-xl border border-line bg-surface px-4 text-[0.88rem] font-bold text-terra-ink shadow-soft transition hover:bg-terra-soft"
+                  aria-label="Voltar para o meu estado"
+                >
+                  <LocateFixed size={17} aria-hidden />
+                  <span className="hidden sm:inline">Meu estado</span>
+                </button>
+              ) : null}
+            </div>
+          </section>
+
+          <div className="transition-all duration-300">
+            <MapaBrasil
+              selecionada={selecionada}
+              aoSelecionar={(nova) => {
+                setUf(nova);
+                setMunicipio(null);
+              }}
+              municipioIbge={municipio?.ibge ?? null}
+              aoSelecionarMunicipio={(ibgeSel, nome) => setMunicipio({ ibge: ibgeSel, nome })}
+            />
           </div>
-          {uf !== null && uf !== ufPerfil ? (
-            <button
-              onClick={() => setUf(null)}
-              className="inline-flex min-h-[52px] items-center gap-1.5 rounded-xl2 border border-line bg-surface px-3 text-[0.9rem] font-bold text-terra-ink"
-              aria-label="Voltar para o meu estado"
-            >
-              <LocateFixed size={18} aria-hidden />
-              Meu estado
-            </button>
+        </div>
+
+        {/* Coluna Direita: Informações Regionais e Ações */}
+        <div className="lg:col-span-5 xl:col-span-5 space-y-4 lg:sticky lg:top-20">
+          {municipio ? (
+            <div className="flex items-center gap-3 rounded-xl2 border border-terra/60 bg-terra-soft/80 p-3.5 shadow-soft animate-fade-up" role="status">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-terra text-white shadow-soft">
+                <MapPin size={20} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="font-display font-extrabold text-ink text-[1.05rem] truncate">
+                  {municipio.nome}
+                </p>
+                <p className="text-[0.8rem] font-semibold text-terra-ink">
+                  Código IBGE: {municipio.ibge} · {remoto ? "Dados integrados da região" : "Cenário estadual (UF)"}
+                </p>
+              </div>
+            </div>
           ) : null}
+
+          <div key={selecionada} className="transition-all">
+            <PainelRegional resumo={resumo} />
+          </div>
+
+          <Link
+            href={`/assistente?uf=${selecionada}`}
+            className="inline-flex min-h-[54px] w-full items-center justify-center gap-2.5 rounded-xl2 bg-terra px-6 font-bold text-white shadow-card transition hover:brightness-105 active:scale-[0.99]"
+          >
+            <MessageCircle size={20} aria-hidden />
+            <span>Perguntar ao Copiloto sobre esta região</span>
+          </Link>
         </div>
-      </section>
-
-      <MapaBrasil
-        selecionada={selecionada}
-        aoSelecionar={(nova) => {
-          setUf(nova);
-          setMunicipio(null);
-        }}
-        municipioIbge={municipio?.ibge ?? null}
-        aoSelecionarMunicipio={(ibgeSel, nome) => setMunicipio({ ibge: ibgeSel, nome })}
-      />
-
-      {municipio ? (
-        <p className="rounded-xl2 border border-terra bg-terra-soft px-4 py-3 text-[0.95rem] font-bold text-terra-ink" role="status">
-          {municipio.nome} · IBGE {municipio.ibge} — cenário abaixo{remoto ? " (dados da região)" : " (cenário da UF, município ainda sem camada própria)"}.
-        </p>
-      ) : null}
-
-      <div key={selecionada}>
-        <PainelRegional resumo={resumo} />
       </div>
-
-      <Link
-        href={`/assistente?uf=${selecionada}`}
-        className="inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl2 border border-line bg-surface px-5 font-bold text-terra-ink shadow-soft transition hover:border-terra"
-      >
-        <MessageCircle size={20} aria-hidden /> Perguntar sobre esta região
-      </Link>
     </div>
   );
 }

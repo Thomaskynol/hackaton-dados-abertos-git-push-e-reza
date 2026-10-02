@@ -60,33 +60,36 @@ export default function Login() {
   const pergunta = "Entre com seu telefone. É rápido e sem senha para decorar.";
 
   return (
-    <main className="flex min-h-screen flex-col bg-canvas px-6 pb-10 pt-16">
-      <div className="mx-auto w-full max-w-md">
+    <main className="flex min-h-screen items-center justify-center bg-canvas px-4 py-12">
+      <div className="w-full max-w-md rounded-2xl border border-line bg-surface/90 backdrop-blur-md p-6 sm:p-8 shadow-card card-hover">
         <div className="flex items-center gap-3">
-          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-terra text-2xl text-white" aria-hidden>
+          <span
+            className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-amber-600 to-terra text-2xl text-white shadow-soft"
+            aria-hidden
+          >
             🌱
           </span>
           <div>
             <h1 className="font-display text-2xl font-extrabold text-ink">AgroPilot</h1>
-            <p className="text-muted">Seu copiloto da roça</p>
+            <p className="text-sm font-medium text-muted">Copiloto Inteligente 24/7</p>
           </div>
         </div>
 
-        <div className="mt-12">
+        <div className="mt-8">
           <div className="flex items-start justify-between gap-3">
-            <h2 className="font-display text-[1.6rem] font-extrabold leading-tight text-ink">
-              Vamos começar?
+            <h2 className="font-display text-[1.5rem] font-extrabold leading-tight text-ink">
+              Bem-vindo ao campo
             </h2>
             <AudioButton texto={pergunta} />
           </div>
-          <p className="mt-2 text-[1.05rem] text-muted">{pergunta}</p>
+          <p className="mt-1.5 text-[0.98rem] text-muted">{pergunta}</p>
         </div>
 
-        <form onSubmit={entrar} className="mt-8">
-          <label htmlFor="tel" className="mb-2 block font-semibold text-ink">
+        <form onSubmit={entrar} className="mt-6">
+          <label htmlFor="tel" className="mb-2 block text-sm font-bold text-ink">
             Seu telefone (WhatsApp)
           </label>
-          <div className="flex items-center gap-3 rounded-xl2 border border-line bg-surface px-4 shadow-soft focus-within:border-terra">
+          <div className="flex items-center gap-3 rounded-xl2 border border-line bg-canvas px-4 shadow-soft transition-all focus-within:border-terra focus-within:ring-2 focus-within:ring-terra/20">
             <Phone size={20} className="text-muted" aria-hidden />
             <input
               id="tel"
@@ -97,14 +100,14 @@ export default function Login() {
               value={tel}
               onChange={(e) => setTel(formatar(e.target.value))}
               placeholder="(16) 99999-9999"
-              className="min-h-[56px] w-full bg-transparent text-[1.1rem] text-ink outline-none placeholder:text-muted"
+              className="min-h-[54px] w-full bg-transparent text-[1.05rem] font-semibold text-ink outline-none placeholder:text-muted"
             />
           </div>
           <p className="mt-2 text-[0.9rem] text-muted">
             Novo por aqui? Depois de entrar você informa seu nome no cadastro.
           </p>
 
-          <Button type="submit" bloco className="mt-6" disabled={tel.replace(/\D/g, "").length < 10 || carregando}>
+          <Button type="submit" bloco className="mt-6 shadow-soft" disabled={tel.replace(/\D/g, "").length < 10 || carregando}>
             {carregando ? "Entrando…" : "Continuar"} <ArrowRight size={20} />
           </Button>
         </form>
@@ -132,8 +135,9 @@ export default function Login() {
           </Link>
         </p>
 
-        <p className="mt-8 text-center text-[0.9rem] text-muted">
-          Dados de fontes públicas: ZARC/MAPA · Embrapa · Agrofit · ANA
+        <p className="mt-6 text-center text-[0.8rem] text-muted leading-relaxed">
+          🔒 Dados protegidos e alimentados por fontes públicas oficiais:<br />
+          <strong>ZARC · MAPA · Embrapa · Agrofit · CONAB · ANA</strong>
         </p>
       </div>
     </main>
