@@ -1,0 +1,985 @@
+/* ==========================================================================
+   AgroPilot 24/7 — Minimalist, Clean Chatbot Stylesheet
+   Focus: Zero clutter, high readability, premium typography, WhatsApp/ChatGPT simplicity.
+   ========================================================================== */
+
+:root {
+  --font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Clean Dark Mode (Default) */
+  --bg-page: #090e17;
+  --bg-surface: #101726;
+  --bg-bubble-ai: #141f33;
+  --bg-bubble-user: #056143;
+  --bg-input: #101826;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-focus: #10b981;
+
+  --emerald-primary: #10b981;
+  --emerald-glow: rgba(16, 185, 129, 0.2);
+  --emerald-subtle: rgba(16, 185, 129, 0.12);
+
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+
+  --amber: #f59e0b;
+  --red: #ef4444;
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-pill: 9999px;
+
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 14px 35px rgba(0, 0, 0, 0.45);
+  --transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Modo Campo (Luz Solar Forte / Alto Contraste Clean) */
+body.sunlight-mode {
+  --bg-page: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-bubble-ai: #ffffff;
+  --bg-bubble-user: #047857;
+  --bg-input: #ffffff;
+  --border-subtle: #cbd5e1;
+  --border-focus: #047857;
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ==========================================================================
+   1. Clean Minimal Top Navbar
+   ========================================================================== */
+.clean-navbar {
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+  height: 58px;
+  padding: 0 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  z-index: 50;
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  cursor: pointer;
+}
+
+.brand-dot-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, #10b981, #047857);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1rem;
+}
+
+.brand-name {
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--emerald-primary);
+  font-weight: 600;
+}
+
+.live-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--emerald-primary);
+  box-shadow: 0 0 8px var(--emerald-primary);
+  animation: pulse-dot 1.8s infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.5; }
+}
+
+/* Central Farmer Info Pill */
+.nav-center-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--bg-page);
+  border: 1px solid var(--border-subtle);
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.nav-center-pill:hover {
+  border-color: var(--emerald-primary);
+  color: var(--text-primary);
+}
+
+.pill-strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .nav-center-pill {
+    display: none;
+  }
+}
+
+/* Nav Actions */
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-clean {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: var(--transition);
+}
+
+.btn-clean:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  border-color: var(--emerald-primary);
+}
+
+.btn-icon-only {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Dropdown de Simulação para a Banca */
+.sim-dropdown-wrapper {
+  position: relative;
+}
+
+.sim-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.5rem;
+  box-shadow: var(--shadow-lg);
+  width: 250px;
+  display: none;
+  flex-direction: column;
+  gap: 0.25rem;
+  z-index: 100;
+}
+
+.sim-menu.open {
+  display: flex;
+}
+
+.sim-menu-item {
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: var(--transition);
+}
+
+.sim-menu-item:hover {
+  background: var(--emerald-subtle);
+  color: var(--emerald-primary);
+}
+
+/* ==========================================================================
+   2. Main Clean Chat Canvas
+   ========================================================================== */
+.clean-chat-canvas {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-width: 860px;
+  width: 100%;
+  margin: 0 auto;
+  position: relative;
+}
+
+/* Messages Stream */
+.messages-scrollable {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem 1rem 1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  scroll-behavior: smooth;
+}
+
+/* Message Rows & Bubbles */
+.msg-row {
+  display: flex;
+  width: 100%;
+  animation: fadeInMsg 0.25s ease-out;
+}
+
+@keyframes fadeInMsg {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.msg-row.ai {
+  justify-content: flex-start;
+}
+
+.msg-row.user {
+  justify-content: flex-end;
+}
+
+.msg-bubble {
+  max-width: 85%;
+  padding: 0.95rem 1.2rem;
+  border-radius: var(--radius-lg);
+  font-size: 0.92rem;
+  line-height: 1.6;
+  position: relative;
+  word-break: break-word;
+  box-shadow: var(--shadow-sm);
+}
+
+.msg-row.ai .msg-bubble {
+  background: var(--bg-bubble-ai);
+  border: 1px solid var(--border-subtle);
+  border-bottom-left-radius: 4px;
+  color: var(--text-primary);
+}
+
+.msg-row.user .msg-bubble {
+  background: var(--bg-bubble-user);
+  border-bottom-right-radius: 4px;
+  color: #ffffff;
+}
+
+.msg-timestamp {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-align: right;
+  margin-top: 0.4rem;
+}
+
+.msg-row.user .msg-timestamp {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Clean Expandable Explainability Accordion */
+.clean-explain-card {
+  margin-top: 0.75rem;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.8rem;
+  font-size: 0.78rem;
+}
+
+.explain-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--emerald-primary);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.explain-details {
+  margin-top: 0.4rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+/* Compact Clean Voice Player */
+.clean-voice-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-subtle);
+  padding: 0.45rem 0.75rem;
+  border-radius: var(--radius-pill);
+  margin-top: 0.65rem;
+  width: fit-content;
+}
+
+.btn-play-clean {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--emerald-primary);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+  flex-shrink: 0;
+}
+
+.btn-play-clean:hover {
+  transform: scale(1.1);
+}
+
+.voice-wave {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 16px;
+}
+
+.wave-line {
+  width: 2.5px;
+  background: var(--emerald-primary);
+  border-radius: 2px;
+}
+
+/* Action button inside message */
+.btn-msg-action {
+  background: var(--emerald-subtle);
+  border: 1px solid var(--border-focus);
+  color: var(--emerald-primary);
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-top: 0.6rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: var(--transition);
+}
+
+.btn-msg-action:hover {
+  background: var(--emerald-primary);
+  color: white;
+}
+
+/* ==========================================================================
+   3. Bottom Floating Clean Input Capsule
+   ========================================================================== */
+.clean-input-wrapper {
+  padding: 0.5rem 1rem 1.25rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* Horizontal Quick Suggestion Pills (Com barra de rolagem elegante e botões laterais) */
+.chips-container-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 0.35rem;
+}
+
+.btn-scroll-chips {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+  outline: none;
+}
+
+.btn-scroll-chips:hover {
+  background: var(--emerald-primary);
+  color: #ffffff;
+  border-color: var(--emerald-primary);
+  transform: scale(1.08);
+  box-shadow: 0 0 10px var(--emerald-glow);
+}
+
+.clean-chips-bar {
+  display: flex;
+  gap: 0.6rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.4rem 0.2rem 0.55rem 0.2rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(16, 185, 129, 0.4) rgba(255, 255, 255, 0.04);
+  -webkit-overflow-scrolling: touch;
+  align-items: center;
+  flex: 1;
+  scroll-behavior: smooth;
+  cursor: grab;
+  user-select: none;
+  outline: none;
+}
+
+.clean-chips-bar:focus-visible {
+  border-radius: var(--radius-sm);
+  box-shadow: 0 0 0 1.5px var(--emerald-primary);
+}
+
+.clean-chips-bar.dragging {
+  cursor: grabbing;
+  scroll-behavior: auto;
+}
+
+.clean-chips-bar::-webkit-scrollbar {
+  height: 5px;
+  display: block;
+}
+
+.clean-chips-bar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 9999px;
+}
+
+.clean-chips-bar::-webkit-scrollbar-thumb {
+  background: rgba(16, 185, 129, 0.4);
+  border-radius: 9999px;
+  transition: background 0.2s ease;
+}
+
+.clean-chips-bar::-webkit-scrollbar-thumb:hover {
+  background: var(--emerald-primary);
+}
+
+.clean-chip {
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  font-weight: 500;
+  padding: 0.52rem 1.15rem;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  transition: var(--transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  line-height: 1.35;
+}
+
+.clean-chip:hover {
+  background: var(--emerald-subtle);
+  border-color: var(--emerald-primary);
+  color: var(--emerald-primary);
+  box-shadow: 0 4px 12px var(--emerald-glow);
+}
+
+/* Input Capsule (Barra de pesquisa e mensagens ampliada e destacada) */
+.clean-input-capsule {
+  display: flex;
+  align-items: center;
+  background: var(--bg-input);
+  border: 1.5px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  padding: 0.6rem 0.8rem 0.6rem 1.25rem;
+  min-height: 60px;
+  gap: 0.65rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  transition: var(--transition);
+}
+
+.clean-input-capsule:focus-within {
+  border-color: var(--emerald-primary);
+  box-shadow: 0 0 20px var(--emerald-glow), 0 6px 24px rgba(0, 0, 0, 0.35);
+}
+
+.clean-input-field {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 1.08rem;
+  color: var(--text-primary);
+  padding: 0.3rem 0.5rem;
+  line-height: 1.5;
+}
+
+.clean-input-field::placeholder {
+  color: var(--text-muted);
+  font-size: 1.02rem;
+}
+
+.btn-tool-input {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+  flex-shrink: 0;
+}
+
+.btn-tool-input:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--emerald-primary);
+}
+
+.btn-send-capsule {
+  background: var(--emerald-primary);
+  color: white;
+  border: none;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px var(--emerald-glow);
+}
+
+.btn-send-capsule:hover {
+  transform: scale(1.06);
+  background: #059669;
+}
+
+/* ==========================================================================
+   4. Clean Slide-out Drawer (Minha Fazenda & ZARC)
+   ========================================================================== */
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: none;
+  justify-content: flex-end;
+}
+
+.drawer-panel {
+  background: var(--bg-surface);
+  width: 100%;
+  max-width: 440px;
+  height: 100%;
+  border-left: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+  overflow-y: auto;
+  gap: 1.25rem;
+  animation: slideDrawer 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideDrawer {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 0.85rem;
+}
+
+.drawer-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.btn-close-drawer {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.clean-card {
+  background: var(--bg-page);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Inputs de edição no modal do menu hamburguer (Fonte Branca de Alto Contraste) */
+.modal-profile-input,
+#form-clean-profile input,
+input.clean-input-capsule {
+  color: #ffffff !important;
+  font-family: inherit;
+  font-size: 0.95rem;
+  background: var(--bg-page) !important;
+  border: 1.5px solid var(--border-subtle);
+  padding: 0.65rem 0.9rem;
+  min-height: 44px;
+  border-radius: var(--radius-sm);
+  outline: none;
+  box-shadow: none;
+  transition: var(--transition);
+}
+
+.modal-profile-input:focus,
+#form-clean-profile input:focus,
+input.clean-input-capsule:focus {
+  border-color: var(--emerald-primary);
+  box-shadow: 0 0 12px var(--emerald-glow);
+  color: #ffffff !important;
+}
+
+body.sunlight-mode .modal-profile-input,
+body.sunlight-mode #form-clean-profile input {
+  color: #0f172a !important;
+  background: #ffffff !important;
+  border-color: #cbd5e1;
+}
+
+/* Clean Toast */
+.clean-toast-container {
+  position: fixed;
+  top: 70px;
+  right: 20px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.clean-toast {
+  background: var(--bg-surface);
+  border: 1px solid var(--emerald-primary);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  max-width: 360px;
+  font-size: 0.82rem;
+  animation: fadeInMsg 0.25s ease-out;
+}
+
+/* ==========================================================================
+   5. Tela de Boas-Vindas / Onboarding Inicial do Produtor
+   ========================================================================== */
+.onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  background: rgba(9, 14, 23, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  overflow-y: auto;
+  transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.35s ease;
+}
+
+.onboarding-overlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.onboarding-card {
+  background: var(--bg-surface);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-lg);
+  padding: 2.25rem;
+  max-width: 640px;
+  width: 100%;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.65), 0 0 35px rgba(16, 185, 129, 0.15);
+  animation: modalScaleIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  margin: auto;
+}
+
+@keyframes modalScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.onboarding-header {
+  text-align: center;
+  margin-bottom: 1.75rem;
+}
+
+.onboarding-brand-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--emerald-subtle);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: var(--emerald-primary);
+  padding: 0.35rem 0.9rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.82rem;
+  font-weight: 700;
+  margin-bottom: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.onboarding-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.5px;
+  margin-bottom: 0.5rem;
+  line-height: 1.25;
+}
+
+.onboarding-subtitle {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.onboarding-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.onboarding-col-full {
+  grid-column: span 2;
+}
+
+.onboarding-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.onboarding-group label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.onboarding-input {
+  background: var(--bg-page);
+  border: 1.5px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 0.95rem;
+  font-family: inherit;
+  font-size: 0.92rem;
+  color: #ffffff !important;
+  outline: none;
+  transition: var(--transition);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.onboarding-input:focus {
+  border-color: var(--emerald-primary);
+  box-shadow: 0 0 14px var(--emerald-glow);
+}
+
+.onboarding-input::placeholder {
+  color: var(--text-muted);
+}
+
+.onboarding-select {
+  cursor: pointer;
+}
+
+.onboarding-select option {
+  background: #101726;
+  color: #ffffff;
+  padding: 0.5rem;
+}
+
+.onboarding-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.btn-onboarding-primary {
+  background: var(--emerald-primary);
+  color: #ffffff;
+  border: none;
+  padding: 0.95rem 1.5rem;
+  border-radius: var(--radius-pill);
+  font-family: inherit;
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 18px var(--emerald-glow);
+  transition: var(--transition);
+}
+
+.btn-onboarding-primary:hover {
+  background: #059669;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(16, 185, 129, 0.4);
+}
+
+.btn-onboarding-demo {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  padding: 0.65rem 1rem;
+  border-radius: var(--radius-pill);
+  font-family: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: var(--transition);
+  text-align: center;
+}
+
+.btn-onboarding-demo:hover {
+  background: rgba(255, 255, 255, 0.09);
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.onboarding-footer-note {
+  margin-top: 1.25rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.4;
+}
+
+body.sunlight-mode .onboarding-overlay {
+  background: rgba(248, 250, 252, 0.95);
+}
+
+body.sunlight-mode .onboarding-card {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+
+body.sunlight-mode .onboarding-title {
+  color: #0f172a;
+}
+
+body.sunlight-mode .onboarding-input {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a !important;
+}
+
+body.sunlight-mode .onboarding-select option {
+  background: #ffffff;
+  color: #0f172a;
+}
+
+body.sunlight-mode .onboarding-group label {
+  color: #334155;
+}
+
+@media (max-width: 600px) {
+  .onboarding-card {
+    padding: 1.5rem 1.2rem;
+  }
+  .onboarding-grid {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
+  .onboarding-col-full {
+    grid-column: span 1;
+  }
+  .onboarding-title {
+    font-size: 1.35rem;
+  }
+}
