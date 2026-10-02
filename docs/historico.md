@@ -46,3 +46,8 @@ Atualizado a cada entrega. Front/back estão em outras branches; merge no final.
 3. Ter `base de dados/` local → `python3 correlacao/{zarc,psr,sigef,agrofit,ana}.py` → `python3 correlacao/load_mongo.py`.
 4. Validar: `python3 -m unittest discover -s correlacao` (tudo verde, ~2s).
 5. Backend consome coleções `agropilot.*` (schemas Sec. 5 do mestre); RiskEngine/motor ficam na branch backend.
+
+## Rotina de trabalho (acordo)
+
+- Commit pequeno e frequente; `git pull --rebase` a cada poucos commits.
+- Wiki do projeto via dono: pergunta vai, resposta volta — usar quando faltar contexto profundo.
