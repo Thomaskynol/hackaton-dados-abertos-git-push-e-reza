@@ -47,6 +47,17 @@ Atualizado a cada entrega. Front/back estão em outras branches; merge no final.
 4. Validar: `python3 -m unittest discover -s correlacao` (tudo verde, ~2s).
 5. Backend consome coleções `agropilot.*` (schemas Sec. 5 do mestre); RiskEngine/motor ficam na branch backend.
 
+## Merge main → correlacao-de-dados (2026-10-02, `89ee137`)
+
+Main trouxe p/ branch:
+- `back/` FastAPI mock (routes health/chat/onboarding/produtor/alertas + schemas + `mock.py`, módulo `app.main`, `requirements.txt`, `back/tests/test_contrato.py`)
+- front estático (`index.html`, `styles/main.css`, `scripts/{api,app,copilot-ai,data}.js`, `hackathon/login/`)
+- docs `CONTRATO_API.md` / `INTEGRACAO_SISTEMA.md` / `docs/PRODUCT_SPEC.md` (+ `arquitetura-front-and-end.md`, `README.md`)
+
+Limpeza pós-merge (neste commit):
+- junk removido: 16× `back/**/__pycache__/*.pyc` (vieram commitados no merge) — `git rm -r --cached` + rm; `.gitignore` já cobria `__pycache__/` e `*.pyc`, sem alteração
+- compose: serviço `api` (python:3.12-slim, working_dir `/app`, `./back:/app`, 8000:8000, `MONGO_URL=mongodb://mongo:27017` + `CORS_ORIGINS`, `uvicorn app.main:app --host 0.0.0.0 --port 8000`, depends_on mongo); mongo intacto; `docker compose config` OK
+
 ## Rotina de trabalho (acordo)
 
 - Commit pequeno e frequente; `git pull --rebase` a cada poucos commits.
