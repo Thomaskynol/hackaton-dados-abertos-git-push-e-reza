@@ -13,9 +13,41 @@ import type {
 import { formatarPreco, rotuloCultura } from "@/lib/precos";
 
 function mapearEstado(e: EstadoRegional): EstadoEvidencia {
-  if (e === "pendente") return "pendente";
+  if (e === "disponivel") return "favoravel";
   if (e === "sem_dado") return "sem_dado";
-  return "atencao";
+  return "pendente";
+}
+
+function detalheProducao(p: ResumoRegional["producao"]): string {
+  if (p.estado === "disponivel" && (p.culturaTopo || p.areaHa != null || p.producaoT != null)) {
+    const partes = [
+      p.culturaTopo ?? "cultura principal",
+      p.areaHa != null ? `${p.areaHa.toLocaleString("pt-BR")} ha` : null,
+      p.producaoT != null ? `${p.producaoT.toLocaleString("pt-BR")} t` : null,
+      p.safraRef ? `safra ${p.safraRef}` : null,
+    ].filter(Boolean);
+    return partes.join(" · ");
+  }
+  return "Sem dado ainda. Quando o SIGEF ligar, aparece cultura, area e producao da UF.";
+}
+
+function detalheSeguro(s: ResumoRegional["seguro"]): string {
+  if (s.estado === "disponivel" && (s.apolices != null || s.culturaTopo)) {
+    const partes = [
+      s.culturaTopo ? `topo: ${s.culturaTopo}` : null,
+      s.apolices != null ? `${s.apolices.toLocaleString("pt-BR")} apólices` : null,
+      s.valorSegurado != null ? `R$ ${s.valorSegurado.toLocaleString("pt-BR")}` : null,
+    ].filter(Boolean);
+    return partes.join(" · ") || "Dados do seguro disponíveis — ver fonte.";
+  }
+  return "Sem dado ainda. Vira do PSR/SISSER (2016-2024): apolices por cultura.";
+}
+
+function detalheIrrigacao(i: ResumoRegional["irrigacao"]): string {
+  if (i.estado === "disponivel" && i.areaIrrigadaHa != null) {
+    return `${i.areaIrrigadaHa.toLocaleString("pt-BR")} ha irrigados.`;
+  }
+  return "Sem dado ainda. Vira do Atlas Irrigacao (ANA).";
 }
 
 function BlocoPreco({ preco }: { preco: PrecoRef }) {
@@ -74,10 +106,10 @@ export function PainelRegional({ resumo }: { resumo: ResumoRegional }) {
         </div>
         <AudioButton texto={voz} />
       </div>
-      <EvidenceCard evidencia={{ tipo: "sigef", estado: mapearEstado(producao.estado), titulo: "O que a regiao mais produz", detalhe: "Sem dado ainda. Quando o SIGEF ligar, aparece cultura, area e producao da UF.", fonte: producao.fonte }} />
+      <EvidenceCard evidencia={{ tipo: "sigef", estado: mapearEstado(producao.estado), titulo: "O que a regiao mais produz", detalhe: detalheProducao(producao), fonte: producao.fonte }} />
       <EvidenceCard evidencia={{ tipo: "zarc", estado: mapearEstado(solo.estado), titulo: "Tipo de solo predominante", detalhe: solo.descricao, fonte: solo.fonte }} />
-      <EvidenceCard evidencia={{ tipo: "psr", estado: mapearEstado(seguro.estado), titulo: "Forca da cultura no seguro", detalhe: "Sem dado ainda. Vira do PSR/SISSER (2016-2024): apolices por cultura.", fonte: seguro.fonte }} />
-      <EvidenceCard evidencia={{ tipo: "ana", estado: mapearEstado(irrigacao.estado), titulo: "Irrigacao disponivel", detalhe: "Sem dado ainda. Vira do Atlas Irrigacao (ANA).", fonte: irrigacao.fonte }} />
+      <EvidenceCard evidencia={{ tipo: "psr", estado: mapearEstado(seguro.estado), titulo: "Forca da cultura no seguro", detalhe: detalheSeguro(seguro), fonte: seguro.fonte }} />
+      <EvidenceCard evidencia={{ tipo: "ana", estado: mapearEstado(irrigacao.estado), titulo: "Irrigacao disponivel", detalhe: detalheIrrigacao(irrigacao), fonte: irrigacao.fonte }} />
       <article className="relative overflow-hidden rounded-xl2 border border-line bg-surface p-4 shadow-soft">
         <span className="absolute left-0 top-0 h-full w-1.5 bg-terra" aria-hidden />
         <h3 className="font-display text-[1.1rem] font-extrabold text-ink">Para vender melhor</h3>
