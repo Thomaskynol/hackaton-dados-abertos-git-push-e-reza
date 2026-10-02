@@ -63,7 +63,7 @@ services:
     volumes:
       - ./seed:/seed:z
     environment:
-      - SEED_URL=${SEED_URL:-https://github.com/Thomaskynol/hackaton-dados-abertos-sql-injection/releases/download/dados-v1/agropilot.gz}
+      - SEED_URL=${SEED_URL:-https://github.com/Thomaskynol/hackaton-dados-abertos-sql-injection/releases/download/data/agropilot.gz}
     # ponytail: one-shot; baixa asset só se ausente, restaura só se vazio, sai 0
     command: >
       bash -c "

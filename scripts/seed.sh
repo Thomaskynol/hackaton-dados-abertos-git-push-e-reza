@@ -6,7 +6,7 @@
 #   SEED_URL=<url> ./scripts/seed.sh
 set -euo pipefail
 
-SEED_URL="${SEED_URL:-https://github.com/Thomaskynol/hackaton-dados-abertos-sql-injection/releases/download/dados-v1/agropilot.gz}"
+SEED_URL="${SEED_URL:-https://github.com/Thomaskynol/hackaton-dados-abertos-sql-injection/releases/download/data/agropilot.gz}"
 FILE="seed/agropilot.gz"
 FORCE=0
 [ "${1:-}" = "--force" ] && FORCE=1
