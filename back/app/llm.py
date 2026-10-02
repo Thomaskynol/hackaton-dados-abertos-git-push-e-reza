@@ -157,10 +157,13 @@ _MAX_ROUNDS = 3
 _RESUMO_TXT = 2000
 
 
-def _ctx_usuario(mensagem: str, produtor_id=None) -> str:
+def _ctx_usuario(mensagem: str, produtor_id=None, contexto_extra=None) -> str:
     txt = f"pergunta do produtor: {mensagem}"
     if produtor_id:
         txt += f"\nprodutor_id: {produtor_id}"
+    extra = str(contexto_extra or "").strip()
+    if extra:
+        txt += f"\n{extra[:2000]}"
     return txt
 
 
@@ -239,7 +242,8 @@ def _assistant_tool_msg(msg, calls):
             "tool_calls": _tool_msgs(calls)}
 
 
-def responder_com_tools(mensagem: str, db=None, produtor_id=None, max_rounds=3):
+def responder_com_tools(mensagem: str, db=None, produtor_id=None, max_rounds=3,
+                        contexto_extra=None):
     """Loop agente sync. Retorna (texto|None, usadas). Nunca raise."""
     key = os.getenv("OPENROUTER_API_KEY")
     if not key or not TOOLS_SCHEMA or dispatch is None:
@@ -251,7 +255,7 @@ def responder_com_tools(mensagem: str, db=None, produtor_id=None, max_rounds=3):
     except Exception:
         rounds = _MAX_ROUNDS
     messages = [{"role": "system", "content": SYSTEM_AGENT},
-                {"role": "user", "content": _ctx_usuario(mensagem, produtor_id)}]
+                {"role": "user", "content": _ctx_usuario(mensagem, produtor_id, contexto_extra)}]
     usadas = []
     try:
         for _ in range(rounds):
@@ -296,7 +300,8 @@ def responder_com_tools(mensagem: str, db=None, produtor_id=None, max_rounds=3):
         return None, usadas
 
 
-def responder_com_tools_stream(mensagem: str, db=None, produtor_id=None, max_rounds=3):
+def responder_com_tools_stream(mensagem: str, db=None, produtor_id=None, max_rounds=3,
+                               contexto_extra=None):
     """Gera ("tool", {name, args}) por call executada, depois ("delta", chunk). Nunca raise."""
     key = os.getenv("OPENROUTER_API_KEY")
     if not key or not TOOLS_SCHEMA or dispatch is None:
@@ -308,7 +313,7 @@ def responder_com_tools_stream(mensagem: str, db=None, produtor_id=None, max_rou
     except Exception:
         rounds = _MAX_ROUNDS
     messages = [{"role": "system", "content": SYSTEM_AGENT},
-                {"role": "user", "content": _ctx_usuario(mensagem, produtor_id)}]
+                {"role": "user", "content": _ctx_usuario(mensagem, produtor_id, contexto_extra)}]
     try:
         for _ in range(rounds):
             try:

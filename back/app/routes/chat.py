@@ -1,10 +1,13 @@
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 import json
+import logging
 from ..schemas.chat import ChatRequest, ChatResponseSuccess, ChatResponseError
 from ..schemas.intencoes import Intencao
 from ..core.router_intencao import classificar_intencao
 from ..db import get_db
+from ..memoria import (buscar_sessao, contexto_memorias, criar_sessao,
+                       extrair_memorias, salvar_memoria, salvar_mensagem)
 from ..dados_reais import (
     buscar_janelas,
     buscar_produtos,
@@ -20,6 +23,8 @@ from ..llm import (
 )
 
 router = APIRouter(prefix="/api", tags=["Chat"])
+
+log = logging.getLogger(__name__)
 
 IBGE_DEFAULT = "3503208"  # Araraquara (3503307=Araras)
 DATA_EXTRACAO = "2026-10-02"
@@ -391,10 +396,18 @@ def _responder_agentico(mensagem: str, produtor_id: str):
     usadas, texto = [], None
     try:
         db = get_db()
-    except Exception:
+    except Exception as e:
+        log.warning("get_db falhou no chat: %r", e)
         db = None
+    ctx_mem = ""
+    if db is not None and produtor_id:
+        try:
+            ctx_mem = contexto_memorias(db, produtor_id)
+        except Exception as e:
+            log.warning("memorias inject falhou: %r", e)
     try:
-        texto, usadas = responder_com_tools(mensagem, db, produtor_id) or (None, [])
+        texto, usadas = responder_com_tools(
+            mensagem, db, produtor_id, contexto_extra=ctx_mem) or (None, [])
     except Exception:
         texto, usadas = None, usadas or []
     if texto:
@@ -435,21 +448,83 @@ def processar_chat(req: ChatRequest):
     intencao = classificar_intencao(req.mensagem)
     agentico, _ = _responder_agentico(req.mensagem, req.produtor_id)
     if agentico is not None:
+        _persistir_turno(req, agentico)
         return agentico
     base, ctx = _base_e_ctx(intencao, req.mensagem, req.produtor_id)
+    # injeta memorias no fallback LLM também (melhor esforço)
+    try:
+        db = get_db()
+        if db is not None and req.produtor_id:
+            ctx_mem = contexto_memorias(db, req.produtor_id)
+            if ctx_mem:
+                ctx = f"{ctx}\n{ctx_mem}"[:4000]
+    except Exception as e:
+        log.warning("memorias fallback falhou: %r", e)
     if intencao == Intencao.NAO_ENTENDI:
         try:
             texto = gerar_resposta(intencao.value, req.mensagem, ctx)
         except Exception:
             texto = None
         if texto:
-            return {**base, "resposta": texto}
+            out = {**base, "resposta": texto}
+            _persistir_turno(req, out)
+            return out
         return {
             "erro": "NAO_ENTENDI",
             "mensagem": "Não consegui entender. Pode reformular?",
             "sugestoes": SUGESTOES,
         }
-    return _com_llm(intencao.value, req.mensagem, base, ctx)
+    out = _com_llm(intencao.value, req.mensagem, base, ctx)
+    _persistir_turno(req, out)
+    return out
+
+
+def _sessao_ativa(db, req: ChatRequest) -> dict | None:
+    """Sessão do req ou auto-criada (título = 40 primeiros chars). None sem db."""
+    if db is None:
+        return None
+    if req.sessao_id:
+        try:
+            s = buscar_sessao(db, req.sessao_id)
+            if s:
+                return s
+        except Exception as e:
+            log.warning("buscar sessao falhou: %r", e)
+    titulo = (req.mensagem or "").strip()[:40] or "Conversa"
+    try:
+        return criar_sessao(db, req.produtor_id, titulo)
+    except Exception as e:
+        log.warning("auto-criar sessao falhou: %r", e)
+        return None
+
+
+def _persistir_turno(req: ChatRequest, out: dict) -> None:
+    """Salva user+assistant e extrai memórias. Nunca raise, nunca bloqueia erro."""
+    if not req.produtor_id or not (req.mensagem or "").strip():
+        return
+    try:
+        db = get_db()
+    except Exception as e:
+        log.warning("get_db persist falhou: %r", e)
+        return
+    if db is None:
+        return
+    try:
+        ses = _sessao_ativa(db, req)
+        sid = (ses or {}).get("id")
+        if not sid:
+            return
+        out.setdefault("sessao_id", sid)
+        salvar_mensagem(db, sid, req.produtor_id, "usuario", req.mensagem)
+        resp_txt = out.get("resposta") or ""
+        if resp_txt:
+            salvar_mensagem(db, sid, req.produtor_id, "copiloto", resp_txt,
+                            out.get("intencao"), out.get("fonte"),
+                            out.get("dados") if isinstance(out.get("dados"), dict) else {})
+            for fato in extrair_memorias(req.mensagem, resp_txt):
+                salvar_memoria(db, req.produtor_id, fato, "chat", sid)
+    except Exception as e:
+        log.warning("persist turno falhou: %r", e)
 
 
 def _sse(event: str, payload) -> str:
@@ -463,12 +538,21 @@ def chat_stream(req: ChatRequest):
     def gen():
         try:
             db = get_db()
-        except Exception:
+        except Exception as e:
+            log.warning("get_db stream falhou: %r", e)
             db = None
+        ctx_mem = ""
+        if db is not None and req.produtor_id:
+            try:
+                ctx_mem = contexto_memorias(db, req.produtor_id)
+            except Exception as e:
+                log.warning("memorias stream falhou: %r", e)
         usadas = []
         try:
-            eventos = responder_com_tools_stream(req.mensagem, db, req.produtor_id)
-        except Exception:
+            eventos = responder_com_tools_stream(
+                req.mensagem, db, req.produtor_id, contexto_extra=ctx_mem)
+        except Exception as e:
+            log.warning("stream tools falhou: %r", e)
             eventos = iter([])
         meta_enviada, texto_final = False, []
         try:
@@ -504,12 +588,25 @@ def chat_stream(req: ChatRequest):
                         meta_enviada = True
                     texto_final.append(payload if isinstance(payload, str) else "")
                     yield _sse("delta", {"texto": payload})
-        except Exception:
-            pass
+        except Exception as e:
+            log.warning("stream eventos falhou: %r", e)
         if meta_enviada:
+            texto = "".join(texto_final).strip()
+            if texto:
+                _persistir_turno(req, {
+                    "resposta": texto,
+                    "intencao": intencao.value,
+                    "fonte": _FONTE_AGENT,
+                    "dados": {"ferramentas_usadas": usadas},
+                })
             yield _sse("done", {})
             return
         base, ctx = _base_e_ctx(intencao, req.mensagem, req.produtor_id)
+        try:
+            if ctx_mem:
+                ctx = f"{ctx}\n{ctx_mem}"[:4000]
+        except Exception:
+            pass
         yield _sse("meta", {
             "intencao": base.get("intencao"),
             "fonte": base.get("fonte"),
@@ -521,11 +618,22 @@ def chat_stream(req: ChatRequest):
             for chunk in gerar_resposta_stream(intencao.value, req.mensagem, ctx):
                 if chunk:
                     vazio = False
+                    texto_final.append(chunk)
                     yield _sse("delta", {"texto": chunk})
-        except Exception:
-            pass
+        except Exception as e:
+            log.warning("stream llm falhou: %r", e)
         if vazio:
-            yield _sse("delta", {"texto": base.get("resposta", "")})
+            fallback = base.get("resposta", "")
+            texto_final.append(fallback)
+            yield _sse("delta", {"texto": fallback})
+        texto = "".join(texto_final).strip()
+        if texto:
+            _persistir_turno(req, {
+                "resposta": texto,
+                "intencao": base.get("intencao"),
+                "fonte": base.get("fonte"),
+                "dados": base.get("dados") or {},
+            })
         yield _sse("done", {})
 
     return StreamingResponse(gen(), media_type="text/event-stream", headers={
