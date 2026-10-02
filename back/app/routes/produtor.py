@@ -1,6 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from ..schemas.produtor import ProdutorCreate, ProdutorResponse, ProdutorCreateResponse
 from ..mock import MOCK_PRODUTOR
+from ..db import get_db
+import uuid
 
 router = APIRouter(prefix="/api", tags=["Produtor"])
 
@@ -12,8 +14,15 @@ router = APIRouter(prefix="/api", tags=["Produtor"])
     description="Retorna os dados cadastrais, lavouras e preferências do produtor rural.",
 )
 def obter_produtor(id: str):
+    # Tenta buscar no MongoDB
+    db = get_db()
+    if db is not None:
+        doc = db.produtores.find_one({"id": id}, {"_id": 0})
+        if doc:
+            return doc
+
+    # Fallback mock
     if id != MOCK_PRODUTOR["id"] and id != "antonio":
-        # Retorna o perfil mockado com o id requisitado para facilitar testes do front
         resposta = dict(MOCK_PRODUTOR)
         resposta["id"] = id
         return resposta
@@ -27,8 +36,18 @@ def obter_produtor(id: str):
     description="Cria ou atualiza as características do produtor e suas lavouras.",
 )
 def cadastrar_ou_atualizar_produtor(produtor: ProdutorCreate):
+    produtor_id = str(uuid.uuid4())[:8]
+
+    # Tenta persistir no MongoDB
+    db = get_db()
+    if db is not None:
+        doc = produtor.model_dump()
+        doc["id"] = produtor_id
+        doc["criado_em"] = "2026-10-02T10:00:00Z"
+        db.produtores.update_one({"telefone": doc["telefone"]}, {"$set": doc}, upsert=True)
+
     return {
-        "id": "abc123",
+        "id": produtor_id,
         "mensagem": "Perfil cadastrado com sucesso",
         "ok": True,
     }
