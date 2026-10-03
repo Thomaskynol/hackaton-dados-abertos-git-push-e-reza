@@ -52,7 +52,12 @@ def test_regiao_cheio_disponivel(monkeypatch):
     assert d["producao"]["estado"] == "disponivel" and d["producao"]["areaHa"] == 10.0
     assert d["seguro"]["estado"] == "disponivel" and d["seguro"]["apolices"] == 7
     assert d["irrigacao"]["estado"] == "disponivel"
-    assert len(d["precos"]) == 3 and all(p["valor"] is None for p in d["precos"])
+    # precos agora reais (PGPM/CONAB): milho tem piso oficial; cepea nunca traz numero
+    assert len(d["precos"]) == 3
+    pgpm = next(p for p in d["precos"] if p["tipo"] == "pgpm")
+    assert pgpm["valor"] is not None and pgpm["estado"] == "disponivel"
+    cepea = next(p for p in d["precos"] if p["tipo"] == "cepea")
+    assert cepea["valor"] is None
     assert d["oportunidade"]["estado"] == "disponivel"
     assert "via tools" in d["fonte"] and d["data_extracao"]
 

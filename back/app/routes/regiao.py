@@ -12,7 +12,7 @@ from datetime import date
 from fastapi import APIRouter, Query
 
 from ..db import get_db
-from ..tools import dispatch
+from ..tools import dispatch, agregar_psr_uf
 
 log = logging.getLogger(__name__)
 
@@ -183,6 +183,7 @@ def _bloco_producao(db, ibge: str, cultura: str | None, uf: str) -> dict:
 
 
 def _bloco_seguro(db, ibge: str, cultura: str | None, uf: str) -> dict:
+    # 1) tenta o município exato (+cultura, se houver) — dado mais específico
     if db is not None and ibge:
         args = {"cod_ibge": ibge}
         if cultura:
@@ -197,24 +198,47 @@ def _bloco_seguro(db, ibge: str, cultura: str | None, uf: str) -> dict:
             x: dict = riscos[0]
             try:
                 return {
-                    "uf": uf, "estado": "disponivel",
+                    "uf": uf, "estado": "disponivel", "escopo": "municipio",
                     "apolices": x.get("apolices"),
-                    "valorSegurado": None,
+                    "valorSegurado": x.get("pago"),
                     "culturaTopo": cultura,
                     "ano": x.get("ano"), "taxa_pct": x.get("taxa_pct"),
                     "pago_reais": x.get("pago"),
                     "por_evento": (x.get("por_evento") or [])[:3],
-                    "fonte": _fonte("MAPA — PSR/SISSER", "2016–2024",
-                                     ["Dados de apólice (indenizações pagas em pago_reais), não de produção individual."]),
+                    "fonte": _fonte("MAPA — Seguro Rural (PSR)", "2016–2024",
+                                     ["Baseado nas apólices do seguro rural da região, não na produção de cada propriedade."]),
                 }
             except Exception as e:
                 log.warning("mapeamento psr falhou: %r", e)
+
+    # 2) sem município (ou sem match): agrega o estado inteiro — retrato real da UF
+    if db is not None:
+        try:
+            ag = agregar_psr_uf(db, uf, cultura)
+        except Exception as e:
+            log.warning("agregacao psr uf falhou: %r", e)
+            ag = None
+        if ag:
+            return {
+                "uf": uf, "estado": "disponivel", "escopo": "uf",
+                "apolices": ag.get("apolices"),
+                "valorSegurado": ag.get("pago"),
+                "culturaTopo": cultura or ag.get("cultura_topo"),
+                "ano": None, "taxa_pct": ag.get("taxa_pct"),
+                "pago_reais": ag.get("pago"),
+                "sinistros": ag.get("sinistros"),
+                "por_evento": ag.get("por_evento") or [],
+                "fonte": _fonte("MAPA — Seguro Rural (PSR)", ag.get("periodo", "2016–2024"),
+                                 ["Soma das apólices do estado inteiro, não da sua propriedade.",
+                                  "Escolha o seu município no mapa para um retrato mais próximo de você."]),
+            }
+
     alvo = f"{cultura or 'cultura'} em {ibge or uf}"
     return {
         "uf": uf, "estado": "sem_dado", "apolices": None,
         "valorSegurado": None, "culturaTopo": cultura,
-        "fonte": _fonte("MAPA — PSR/SISSER", "2016–2024",
-                         [f"Sem dado PSR para {alvo}."]),
+        "fonte": _fonte("MAPA — Seguro Rural (PSR)", "2016–2024",
+                         [f"Ainda sem registro de seguro rural para {alvo} na base."]),
     }
 
 
@@ -246,30 +270,35 @@ def _bloco_irrigacao(db, ibge: str, uf: str) -> dict:
     }
 
 
-def _bloco_precos(cultura: str | None, uf: str) -> list:
-    cult = cultura or "sua cultura"
-    return [
-        {"tipo": "pgpm", "cultura": cult, "uf": None, "valor": None,
-         "unidade": "R$/60kg",
-         "fonte": _fonte("CONAB — PGPM (preço mínimo)", "safra 2026/27 (quando confirmado)",
-                          ["Preço mínimo oficial, não preço de mercado.",
-                           "Valor exibido somente após confirmação da equipe."]),
-         "data": None, "estado": "pendente",
-         "aviso": "Preço mínimo de referência do governo. Serve de piso para planejar — não diz quando vender."},
-        {"tipo": "conab_mercado", "cultura": cult, "uf": uf, "valor": None,
-         "unidade": "R$/60kg",
-         "fonte": _fonte("CONAB — preços de mercado por UF", "aguardando ingestão",
-                          ["Camada ainda não ligada ao backend."]),
-         "data": None, "estado": "pendente",
-         "aviso": "Mostra o contexto de mercado da sua região — não é ordem de venda."},
-        {"tipo": "cepea", "cultura": cult, "uf": None, "valor": None,
-         "unidade": "indicador diário",
-         "fonte": _fonte("Cepea/ESALQ — indicador diário (link externo)", "",
-                          ["Número pertence ao Cepea; abrimos o site oficial em vez de copiar."]),
-         "data": None, "estado": "link_externo",
-         "url": "https://www.cepea.esalq.usp.br/br",
-         "aviso": "Abre o indicador oficial no site do Cepea."},
-    ]
+def _bloco_precos(db, cultura: str | None, uf: str) -> list:
+    """Preços reais via precos_dados (PGPM CONAB + Cepea link). Nunca raise."""
+    try:
+        from ..precos_dados import precos_da_uf
+        return precos_da_uf(db, cultura, uf)
+    except Exception as e:
+        log.warning("bloco precos falhou: %r", e)
+        cult = cultura or "sua cultura"
+        return [
+            {"tipo": "pgpm", "cultura": cult, "uf": None, "valor": None,
+             "unidade": "R$/60kg",
+             "fonte": _fonte("CONAB — PGPM (preço mínimo)", "safra vigente (quando publicado)",
+                              ["Preço mínimo oficial, não preço de mercado."]),
+             "data": None, "estado": "pendente",
+             "aviso": "Preço mínimo de referência do governo. Serve de piso para planejar — não diz quando vender."},
+            {"tipo": "conab_mercado", "cultura": cult, "uf": uf, "valor": None,
+             "unidade": "R$/60kg",
+             "fonte": _fonte("CONAB — preços de mercado por UF", "aguardando ingestão",
+                              ["Camada ainda não ligada ao backend."]),
+             "data": None, "estado": "pendente",
+             "aviso": "Mostra o contexto de mercado da sua região — não é ordem de venda."},
+            {"tipo": "cepea", "cultura": cult, "uf": None, "valor": None,
+             "unidade": "indicador diário",
+             "fonte": _fonte("Cepea/ESALQ — indicador diário (link externo)", "",
+                              ["Número pertence ao Cepea; abrimos o site oficial em vez de copiar."]),
+             "data": None, "estado": "link_externo",
+             "url": "https://www.cepea.esalq.usp.br/br",
+             "aviso": "Abre o indicador oficial no site do Cepea."},
+        ]
 
 
 def _bloco_oportunidade(zarc_ok: bool, sigef_ok: bool, cultura: str | None,
@@ -343,7 +372,7 @@ def get_regiao(uf: str = Query(...), ibge: str | None = None,
         "uf": {"sigla": uf, "nome": nome, "regiao": regiao},
         "ibge": ibge, "municipio": municipio,
         "producao": producao, "solo": solo, "seguro": seguro,
-        "irrigacao": irrigacao, "precos": _bloco_precos(cultura, uf),
+        "irrigacao": irrigacao, "precos": _bloco_precos(db, cultura, uf),
         "oportunidade": oportunidade,
         "fonte": FONTE_REGIAO, "data_extracao": hoje,
     }

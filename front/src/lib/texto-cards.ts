@@ -179,10 +179,10 @@ function serPara(medidas: { singular: boolean }[]): string {
 /** Sem dado: mesma frase honesta para todos os blocos do painel. */
 function semDado(queE: string): TextoCard {
   return {
-    detalhe: `Ainda não temos ${queE} para a sua região. O dado entra aqui assim que a base oficial ligar — sem estimativa.`,
+    detalhe: `Ainda não encontramos ${queE} para a sua região. Assim que surgir, mostramos aqui — e você só vê número com fonte, nunca um chute.`,
     destaques: [],
     leitura:
-      "Enquanto isso, a aba Preços mostra o que já está disponível, com fonte e período.",
+      "Dica: escolha o seu município no mapa — às vezes o dado existe para a cidade vizinha e aparece quando você aproxima.",
   };
 }
 
@@ -258,44 +258,50 @@ export function producaoEmTexto(
  *         São 7 apólices, entre 2016 e 2024."
  */
 export function seguroEmTexto(
-  s: Pick<SeguroUF, "estado" | "apolices" | "valorSegurado" | "culturaTopo">,
+  s: Pick<SeguroUF, "estado" | "apolices" | "valorSegurado" | "culturaTopo"> & {
+    taxa_pct?: number | null;
+    periodo?: string | null;
+  },
   regiao: string,
 ): TextoCard {
-  const temDado =
-    s.estado === "disponivel" && (s.apolices != null || s.valorSegurado != null);
+  const temDado = s.estado === "disponivel" && s.apolices != null;
 
-  if (!temDado) return semDado("o histórico de apólices do seguro rural");
+  if (!temDado) return semDado("o histórico de seguro rural");
 
   const cult = culturaLegivel(s.culturaTopo);
+  const n = s.apolices ?? 0;
+  const quantos = `${numeroBR(n)} ${plural(n, "produtor fez", "produtores fizeram")}`;
 
-  const medidas: { texto: string; singular: boolean }[] = [];
-  if (s.apolices != null)
-    medidas.push({
-      texto: `${numeroBR(s.apolices)} ${plural(s.apolices, "apólice", "apólices")}`,
-      singular: eSingular(s.apolices),
-    });
-  if (s.valorSegurado != null)
-    medidas.push({ texto: `R$ ${numeroBR(s.valorSegurado)} segurados`, singular: false });
-
+  // Frase principal — conversa, sem jargão ("apólice" vira "contratou seguro").
   const detalhe =
-    medidas.length > 0
-      ? `É ${cult.artigo} ${cult.nome}, a cultura que mais concentra seguro rural em ${regiao}: ` +
-        `${serPara(medidas)} ${juntar(medidas.map((m) => m.texto))}, entre 2016 e 2024.`
-      : `É ${cult.artigo} ${cult.nome}, a cultura que mais concentra seguro rural em ${regiao}. ` +
-        `O detalhe por cultura ainda não foi exposto.`;
+    `Em ${regiao}, o seguro rural tem mais procura ${cult.nome !== "sua cultura" ? `n${cult.artigo === "a" ? "a" : "o"} ${cult.nome}` : "nas lavouras da região"}: ` +
+    `${quantos} seguro da safra para se proteger de seca, geada e chuva demais. ` +
+    `Quanto mais vizinho já faz, mais fácil é contratar o seu também.`;
 
   const destaques: DestaqueCard[] = [];
-  if (s.apolices != null)
-    destaques.push({ rotulo: "Apólices", valor: numeroBR(s.apolices), dica: "contratos firmados" });
-  if (s.valorSegurado != null)
-    destaques.push({ rotulo: "Valor segurado", valor: `R$ ${numeroBR(s.valorSegurado)}`, dica: "total das apólices" });
-  destaques.push({ rotulo: "Período", valor: "2016 a 2024", dica: "histórico do PSR/SISSER" });
+  destaques.push({
+    rotulo: "Quem já se protege",
+    valor: numeroBR(n),
+    dica: "produtores com seguro da safra na região",
+  });
+  if (s.valorSegurado != null && s.valorSegurado > 0)
+    destaques.push({
+      rotulo: "Já foi pago em perdas",
+      valor: `R$ ${numeroBR(s.valorSegurado)}`,
+      dica: "o que o seguro já devolveu a produtores da região",
+    });
+  if (s.culturaTopo)
+    destaques.push({
+      rotulo: "Cultura mais segurada",
+      valor: cult.nome,
+      dica: "a que mais contrata seguro por aqui",
+    });
 
   return {
     detalhe,
     destaques,
     leitura:
-      "Muita apólice nessa cultura significa mercado maduro: o produtor vizinho já contrata seguro e há histórico para conferir.",
+      "O seguro rural (Proagro / PSR) devolve parte do prejuízo se a safra se perder por clima. Vale perguntar no banco ou na cooperativa na hora do plantio.",
   };
 }
 
