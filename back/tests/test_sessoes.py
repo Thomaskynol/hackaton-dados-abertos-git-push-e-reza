@@ -91,8 +91,13 @@ def test_chat_reusa_sessao_id_e_injeta_memorias(monkeypatch):
 def test_extrair_memorias_sem_llm():
     from app.memoria import contexto_memorias, extrair_memorias, salvar_memoria
     assert extrair_memorias("oi, bom dia") == []
+    # resposta do bot nunca contamina: user disse só "oi"
+    assert extrair_memorias(
+        "oi tudo bem?",
+        "resposta cita milho e doença: o milho tem risco de doença...",
+    ) == []
     fatos = extrair_memorias("minha uva tá com míldio em 3 ha")
-    assert any("mildio" in f or "míldio" in f for f in fatos)
+    assert len(fatos) == 3  # cultura + praga + área, tudo do user
     db = make_db()
     salvar_memoria(db, "p", "planta milho", "chat", "s1")
     salvar_memoria(db, "p", "planta milho", "chat", "s1")  # dedup: não duplica

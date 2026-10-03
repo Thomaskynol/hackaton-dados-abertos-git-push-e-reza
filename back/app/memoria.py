@@ -217,9 +217,13 @@ def _norm(s: str) -> str:
 
 
 def extrair_memorias(mensagem: str, resposta: str | None = None) -> list[str]:
-    """Fatos duráveis da troca. Só keyword, nunca inventa. Max 3, 1 linha cada."""
+    """Fatos duráveis SÓ da mensagem do produtor. `resposta` ignorada (compat).
+
+    Nunca extrai cultura/praga/área da resposta do bot — evita memórias
+    fantasmas (ex: user diz "oi" e bot cita milho/doença).
+    Só keyword, nunca inventa. Max 3, 1 linha cada."""
     achados: list[str] = []
-    texto = _norm(f"{mensagem or ''} {resposta or ''}")
+    texto = _norm(mensagem or "")
     curto = (mensagem or "").strip()
     for c in _CULTURAS:
         if _norm(c) in texto:
