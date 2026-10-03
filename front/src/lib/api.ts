@@ -181,6 +181,118 @@ export async function getRegiao(
   return res.json();
 }
 
+/* ---------------- precos (consultor comercial) ---------------- */
+
+import type { PrecoRef } from "./types";
+
+export interface CanalComercial {
+  id: string;
+  categoria: string;
+  descricao: string;
+  destaque?: string;
+}
+
+export interface CanaisComerciais {
+  uf: string;
+  estado: string;
+  programas: string[];
+  canais: CanalComercial[];
+  detalhe: string;
+  fonte: { nome: string; periodo?: string; url?: string; limitacoes?: string[] };
+}
+
+export interface AnaliseComercial {
+  texto: string;
+  /** "ia" quando gerada por LLM, "heuristica" quando montada dos dados. */
+  origem: "ia" | "heuristica";
+  fonte: string;
+}
+
+export interface PontoSerie {
+  ano: number;
+  valor: number;
+  unidade: string;
+}
+
+export interface ProjecaoPreco {
+  ano: number;
+  valor_estimado: number;
+  faixa_min: number;
+  faixa_max: number;
+  unidade: string;
+}
+
+export interface TendenciaPreco {
+  estado: "disponivel" | "insuficiente";
+  cultura?: string;
+  uf?: string;
+  unidade?: string;
+  ultimo?: PontoSerie;
+  media_recente?: number;
+  menor?: PontoSerie;
+  maior?: PontoSerie;
+  direcao?: "subindo" | "caindo" | "estável";
+  projecao?: ProjecaoPreco | null;
+  serie?: PontoSerie[];
+  fonte?: string;
+  aviso?: string;
+}
+
+export interface PrecosResposta {
+  uf: { sigla: string; nome: string };
+  cultura: string;
+  precos: PrecoRef[];
+  canais: CanaisComerciais;
+  tendencia?: TendenciaPreco;
+  analise: AnaliseComercial;
+}
+
+/** GET /api/precos?uf=&cultura= — preços reais + canais + análise comercial. */
+export async function getPrecos(
+  uf: string,
+  cultura?: string | null,
+): Promise<PrecosResposta> {
+  const q = new URLSearchParams({ uf });
+  if (cultura) q.set("cultura", cultura);
+  const res = await fetch(`${apiUrl()}/api/precos?${q.toString()}`);
+  if (!res.ok) throw new Error(`GET /api/precos ${res.status}`);
+  return res.json();
+}
+
+/* ---------------- alertas ---------------- */
+
+export interface AlertaReal {
+  id: string;
+  tipo: string;
+  severidade: "alta" | "media" | "baixa";
+  mensagem: string;
+  fonte: string;
+  data_extracao?: string;
+  enviado_em?: string;
+  lido?: boolean;
+}
+
+export interface AlertasResposta {
+  alertas: AlertaReal[];
+  uf: string;
+  vazio_ok: boolean;
+  data: string;
+}
+
+/** GET /api/alertas?ibge=&cultura=&uf= — avisos reais (janela ZARC + risco PSR). */
+export async function getAlertas(
+  uf: string,
+  ibge?: string | null,
+  cultura?: string | null,
+): Promise<AlertasResposta> {
+  const q = new URLSearchParams({ uf });
+  if (ibge) q.set("ibge", ibge);
+  if (cultura) q.set("cultura", cultura);
+  const res = await fetch(`${apiUrl()}/api/alertas?${q.toString()}`);
+  if (!res.ok) throw new Error(`GET /api/alertas ${res.status}`);
+  return res.json();
+}
+
 /* ---------------- chat ---------------- */
 
 export interface ChatMeta {

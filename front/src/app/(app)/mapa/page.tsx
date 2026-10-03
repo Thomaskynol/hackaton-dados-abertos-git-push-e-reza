@@ -18,10 +18,11 @@ function ConsultorComercial({ uf, culturaId, precos }: { uf: UFSigla; culturaId:
   const cultura = rotuloCultura(culturaId);
   const mercado = precos.find((p) => p.tipo === "conab_mercado");
   const pgpm = precos.find((p) => p.tipo === "pgpm");
-  const temNumero = (mercado?.valor ?? pgpm?.valor) != null;
-  const texto = temNumero
-    ? `Cenário comercial de ${cultura} em ${uf}, com fonte e data abaixo.`
-    : `Na sua região (${uf}), ${cultura} ainda está sem cotação disponível (CONAB a conectar). O piso PGPM aparece quando confirmado. Nada aqui é ordem de venda.`;
+  const piso = pgpm?.valor ?? mercado?.referencia_piso ?? null;
+  const texto =
+    piso != null
+      ? `No seu estado (${uf}), o governo garante pelo menos ${piso.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} por saca de ${cultura.toLowerCase()}. É o piso para você planejar — o preço do dia veja no Cepea. Nada aqui é ordem de venda.`
+      : `Em ${uf}, ainda não temos um piso de referência para ${cultura.toLowerCase()}. Veja o preço do dia no Cepea, na aba Preços. Nada aqui é ordem de venda.`;
   return (
     <section aria-label="Consultor comercial" className="relative overflow-hidden rounded-xl2 border border-line bg-surface p-4 sm:p-5 shadow-card card-hover">
       <span className="absolute left-0 top-0 h-full w-1.5 bg-gradient-to-b from-amber-500 to-terra" aria-hidden />

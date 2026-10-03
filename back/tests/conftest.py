@@ -133,6 +133,7 @@ _COLS = (
     "sigef_agregado",
     "ana_atlas",
     "agrofit",
+    "precos_conab",
 )
 
 

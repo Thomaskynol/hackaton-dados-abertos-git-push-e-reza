@@ -14,7 +14,7 @@ OUT = Path(__file__).resolve().parent / "output"
 DB = "agropilot"
 BATCH = 5000
 
-FILES = ["zarc", "municipios", "psr_agregado", "sigef_agregado", "agrofit", "ana_atlas"]
+FILES = ["zarc", "municipios", "psr_agregado", "sigef_agregado", "agrofit", "ana_atlas", "precos_conab"]
 
 
 def load_collection(db, name, batch):
@@ -53,6 +53,8 @@ def create_indexes(db):
     db.psr_agregado.create_index(
         [("cod_ibge", 1), ("cultura_canonica", 1), ("ano", -1)], name="psr_geo_cultura_ano")
     db.municipios.create_index([("cod_ibge", 1)], unique=True, name="municipios_cod_ibge")
+    db.precos_conab.create_index(
+        [("cultura_canonica", 1), ("tipo", 1), ("uf", 1), ("ano", 1)], name="precos_cultura_uf_ano")
 
 
 def main():

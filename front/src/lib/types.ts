@@ -149,7 +149,7 @@ export interface IrrigacaoUF {
 
 export type TipoPreco = "pgpm" | "conab_mercado" | "cepea";
 
-export type EstadoPreco = "disponivel" | "pendente" | "sem_cotacao" | "link_externo";
+export type EstadoPreco = "disponivel" | "pendente" | "sem_cotacao" | "link_externo" | "referencia";
 
 /**
  * Preço de referência honesto. Quando não há número, `valor` é null e a UI
@@ -169,6 +169,8 @@ export interface PrecoRef {
   url?: string;
   aviso?: string;
   exemplo?: boolean;
+  /** Piso PGPM usado como régua de referência no card de contexto de mercado. */
+  referencia_piso?: number | null;
 }
 
 /** Tipo de solo predominante — dica em linguagem do produtor (ver SOLOS). */

@@ -77,10 +77,11 @@ class _Resp:
         return self._payload
 
 
-def test_schema_tem_6_tools():
+def test_schema_tem_7_tools():
     names = sorted(t["function"]["name"] for t in TOOLS_SCHEMA)
     assert names == ["buscar_area_sigef", "buscar_irrigacao_ana", "buscar_janelas_zarc",
-                     "buscar_municipio", "buscar_produtos_agrofit", "buscar_risco_psr"]
+                     "buscar_municipio", "buscar_preco_conab", "buscar_produtos_agrofit",
+                     "buscar_risco_psr"]
 
 
 def test_dispatch_db_fake():

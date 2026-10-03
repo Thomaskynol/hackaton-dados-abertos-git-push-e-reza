@@ -262,6 +262,80 @@ def _t_buscar_produtos_agrofit(db, args):
     return {"produtos": out}
 
 
+def agregar_psr_uf(db, uf, cultura=None, limite_docs=20000):
+    """Agrega o seguro rural (PSR) por UF: total de apólices, perdas pagas e a
+    cultura mais segurada. Usado quando não há município selecionado — dá um
+    retrato real do estado inteiro em vez de 'sem dado'. Nunca raise.
+
+    Retorna dict pronto ou None se não houver dado para a UF.
+    """
+    col = _col(db, "psr_agregado")
+    uf = (uf or "").strip().upper()
+    if col is None or not uf:
+        return None
+    cult = _canon_cultura(cultura or "") or None
+    q = {"uf": uf}
+    if cult:
+        q["cultura_canonica"] = cult
+    try:
+        try:
+            cur = col.find(q, {"_id": 0})
+        except TypeError:
+            cur = col.find(q)
+        docs = list(cur)[:limite_docs]
+    except Exception:
+        return None
+    if not docs:
+        return None
+    total_apolices = 0
+    total_sinistros = 0
+    total_pago = 0.0
+    anos = set()
+    por_cultura = {}       # cultura -> apólices (p/ achar a mais segurada)
+    por_evento = {}        # evento -> valor pago (p/ ranquear causas de perda)
+    for d in docs:
+        try:
+            ap = int(d.get("total_apolices") or 0)
+            si = int(d.get("total_sinistros") or 0)
+            pg = float(d.get("total_pago_reais") or 0)
+        except (TypeError, ValueError):
+            ap, si, pg = 0, 0, 0.0
+        total_apolices += ap
+        total_sinistros += si
+        total_pago += pg
+        if d.get("ano") is not None:
+            anos.add(d.get("ano"))
+        c = d.get("cultura_canonica")
+        if c:
+            por_cultura[c] = por_cultura.get(c, 0) + ap
+        for ev in (d.get("por_evento") or []):
+            try:
+                nome = (ev or {}).get("evento")
+                val = float((ev or {}).get("valor") or 0)
+                if nome:
+                    por_evento[nome] = por_evento.get(nome, 0.0) + val
+            except Exception:
+                continue
+    if total_apolices <= 0:
+        return None
+    cultura_topo = cult or (max(por_cultura, key=por_cultura.get) if por_cultura else None)
+    eventos_ord = sorted(por_evento.items(), key=lambda kv: -kv[1])
+    por_evento_top = [{"evento": n, "valor": round(v, 2)} for n, v in eventos_ord[:3]]
+    taxa = round(total_sinistros / total_apolices * 100, 1) if total_apolices else None
+    anos_ord = sorted(a for a in anos if isinstance(a, int))
+    periodo = f"{anos_ord[0]}–{anos_ord[-1]}" if anos_ord else "2016–2024"
+    return {
+        "escopo": "uf",
+        "apolices": total_apolices,
+        "sinistros": total_sinistros,
+        "pago": round(total_pago, 2),
+        "taxa_pct": taxa,
+        "cultura_topo": cultura_topo,
+        "por_evento": por_evento_top,
+        "periodo": periodo,
+    }
+
+
 def _t_buscar_risco_psr(db, args):
     col = _col(db, "psr_agregado")
     if col is None:
@@ -353,6 +427,54 @@ def _t_buscar_irrigacao_ana(db, args):
         "projecao_2030": _res(doc.get("projecao_2030") or {}),
         "projecao_2040": _res(doc.get("projecao_2040") or {}),
     }
+def _t_buscar_preco_conab(db, args):
+    """Preço mínimo oficial (PGPM/CONAB) por cultura + link do indicador Cepea.
+
+    Devolve só número oficial confirmado; sem valor -> estado pendente honesto.
+    Reaproveita a camada precos_dados (Mongo com fallback de arquivo).
+    """
+    cultura = (args or {}).get("cultura")
+    uf = (args or {}).get("uf") or "SP"
+    if not cultura:
+        return {"erro": "informe a cultura"}
+    try:
+        from .precos_dados import bloco_pgpm, bloco_cepea, resumo_tendencia
+    except Exception:
+        try:
+            from app.precos_dados import bloco_pgpm, bloco_cepea, resumo_tendencia  # type: ignore
+        except Exception:
+            return {"erro": "camada de precos indisponivel"}
+    pgpm = bloco_pgpm(db, cultura, uf)
+    cepea = bloco_cepea(db, cultura, uf)
+    tend = resumo_tendencia(db, cultura, uf)
+
+    hist = None
+    if tend.get("estado") == "disponivel":
+        ult = tend.get("ultimo") or {}
+        proj = tend.get("projecao") or {}
+        hist = {
+            "preco_recente_produtor": ult.get("valor"),
+            "ano_recente": ult.get("ano"),
+            "media_ultimos_anos": tend.get("media_recente"),
+            "tendencia": tend.get("direcao"),
+            "projecao_proximo_ano": proj.get("valor_estimado"),
+            "projecao_faixa": [proj.get("faixa_min"), proj.get("faixa_max")] if proj else None,
+            "fonte": "IBGE — Producao Agricola Municipal (PAM)",
+        }
+    return {
+        "cultura": pgpm.get("cultura"),
+        "preco_minimo_pgpm": pgpm.get("valor"),
+        "unidade": pgpm.get("unidade"),
+        "safra": pgpm.get("data"),
+        "estado": pgpm.get("estado"),
+        "fonte": (pgpm.get("fonte") or {}).get("nome"),
+        "cepea_link": cepea.get("url"),
+        "historico_preco": hist,
+        "observacao": "Preco MINIMO oficial (piso), nao preco de mercado. O historico_preco e a media anual "
+                      "do estado (IBGE); a projecao e estimativa de tendencia, nao garantia. "
+                      "PAA/PNAE costumam pagar premio sobre o mercado para a agricultura familiar. "
+                      "Nunca recomende 'vender agora'.",
+    }
 
 
 _HANDLERS = {
@@ -362,6 +484,7 @@ _HANDLERS = {
     "buscar_risco_psr": _t_buscar_risco_psr,
     "buscar_area_sigef": _t_buscar_area_sigef,
     "buscar_irrigacao_ana": _t_buscar_irrigacao_ana,
+    "buscar_preco_conab": _t_buscar_preco_conab,
 }
 
 
@@ -427,4 +550,11 @@ TOOLS_SCHEMA = [
         "parameters": {"type": "object",
                        "properties": {"cod_ibge": {"type": "string"}},
                        "required": ["cod_ibge"]}}},
+    {"type": "function", "function": {
+        "name": "buscar_preco_conab",
+        "description": "Preco MINIMO oficial (PGPM/CONAB) da cultura por saca + link do indicador diario Cepea. Use para perguntas sobre venda, preco, cotacao ou quanto vale a producao.",
+        "parameters": {"type": "object",
+                       "properties": {"cultura": {"type": "string"},
+                                      "uf": {"type": "string"}},
+                       "required": ["cultura"]}}},
 ]

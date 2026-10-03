@@ -20,11 +20,22 @@ function mapearEstado(e: EstadoRegional): EstadoEvidencia {
 
 function BlocoPreco({ preco }: { preco: PrecoRef }) {
   const [aberto, setAberto] = useState(false);
-  const semValor = preco.valor == null;
+  const ehReferencia = preco.estado === "referencia";
+  // "sem cotação" só quando realmente não há nada: nem valor, nem piso de referência.
+  const semNada = preco.valor == null && !ehReferencia && preco.tipo !== "cepea";
   const rotulo =
-    preco.tipo === "pgpm" ? "Preço mínimo (PGPM)"
-    : preco.tipo === "conab_mercado" ? `Mercado (CONAB)${preco.uf ? ` - ${preco.uf}` : ""}`
-    : "Indicador diário (Cepea/ESALQ)";
+    preco.tipo === "pgpm" ? "Piso garantido pelo governo"
+    : preco.tipo === "conab_mercado" ? `Sua região${preco.uf ? ` (${preco.uf})` : ""}`
+    : "Preço do dia (Cepea)";
+
+  // Etiqueta do canto direito: valor real, "a partir de piso", ou nada.
+  const etiqueta =
+    preco.valor != null
+      ? formatarPreco(preco.valor, preco.unidade)
+      : ehReferencia && preco.referencia_piso != null
+        ? `a partir de ${preco.referencia_piso.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`
+        : null;
+
   return (
     <div className="rounded-xl border border-line bg-canvas p-3">
       <div className="flex items-start justify-between gap-2">
@@ -35,13 +46,13 @@ function BlocoPreco({ preco }: { preco: PrecoRef }) {
         {preco.tipo === "cepea" ? (
           <a href={preco.url} target="_blank" rel="noreferrer"
             className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-terra-soft px-3 text-[0.85rem] font-bold text-terra-ink">
-            Ver indicador <ExternalLink size={15} aria-hidden />
+            Ver preço do dia <ExternalLink size={15} aria-hidden />
           </a>
-        ) : (
-          <span className="shrink-0 rounded-full bg-canvas px-2.5 py-1 text-[0.78rem] font-bold text-muted ring-1 ring-line">
-            {formatarPreco(preco.valor, preco.unidade)}
+        ) : etiqueta ? (
+          <span className="shrink-0 rounded-full bg-canvas px-2.5 py-1 text-[0.78rem] font-bold text-ink ring-1 ring-line">
+            {etiqueta}
           </span>
-        )}
+        ) : null}
       </div>
       {preco.aviso && <p className="mt-1 text-[0.85rem] text-muted">{preco.aviso}</p>}
       <div className="mt-1 flex items-center gap-2">
@@ -54,8 +65,8 @@ function BlocoPreco({ preco }: { preco: PrecoRef }) {
       {aberto && preco.fonte.limitacoes?.length ? (
         <p className="mt-1 text-[0.82rem] text-muted">Limites: {preco.fonte.limitacoes.join(" ")}</p>
       ) : null}
-      {semValor && preco.tipo !== "cepea" ? (
-        <p className="mt-1 text-[0.82rem] font-semibold text-muted">sem cotação disponível</p>
+      {semNada ? (
+        <p className="mt-1 text-[0.82rem] font-semibold text-muted">preço do dia no Cepea ao lado</p>
       ) : null}
     </div>
   );

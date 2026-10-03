@@ -149,9 +149,12 @@ except Exception:
 SYSTEM_AGENT = (
     "Você é um copiloto da agricultura familiar brasileira. "
     "Fale PT-BR simples, frases curtas, direto ao ponto. "
-    "ANTES de responder qualquer pergunta sobre plantio, praga, clima, risco, area ou municipio: "
+    "ANTES de responder qualquer pergunta sobre plantio, praga, clima, risco, area, municipio, "
+    "venda, preco ou cotacao: "
     "chame as ferramentas (buscar_janelas_zarc, buscar_produtos_agrofit, buscar_risco_psr, "
-    "buscar_area_sigef, buscar_irrigacao_ana, buscar_municipio) para obter dados reais. "
+    "buscar_area_sigef, buscar_irrigacao_ana, buscar_municipio, buscar_preco_conab) para obter dados reais. "
+    "Para venda/preco use buscar_preco_conab e NUNCA recomende 'vender agora'; "
+    "explique o piso e oriente comparar com o preco do dia (Cepea) e os canais PAA/PNAE. "
     "Nunca responda de memória nem invente valores. "
     "Se faltar cultura ou municipio na pergunta, use cultura/objetivo detectado na mensagem, "
     "municipio Araraquara/SP 3503208 como padrão, e CHAME a ferramenta mesmo assim. "
@@ -394,3 +397,44 @@ def responder_com_tools_stream(mensagem: str, db=None, produtor_id=None, max_rou
             return
     except Exception:
         return
+
+
+# --- Análise comercial (consultor de venda) via OpenRouter ---
+
+SYSTEM_COMERCIAL = (
+    "Você é um consultor comercial da agricultura familiar brasileira. "
+    "Fale PT-BR simples, acolhedor, frases curtas, como quem conversa com o Seu produtor. "
+    "Explique o contexto de preço para AJUDAR A PLANEJAR a venda — NUNCA diga 'venda agora' "
+    "nem 'espere para vender'; a decisão é do produtor. "
+    "Use SÓ os números do contexto fornecido; nunca invente cotação. "
+    "Se só houver o preço mínimo (piso PGPM), explique que ele é a rede de proteção e oriente "
+    "comparar com o preço do dia no Cepea e com os canais (cooperativa, PAA, PNAE, feira). "
+    "Destaque que PAA/PNAE costumam pagar prêmio sobre o mercado para a agricultura familiar. "
+    "No máximo 2 números no corpo. Sem jargão. Termine com UMA sugestão prática de próximo passo. "
+    "Cite a fonte curta no fim (ex: Fonte: CONAB/PGPM). "
+    "Responda em 3 a 5 frases, no máximo."
+)
+
+
+def gerar_analise_comercial(contexto_dados: str) -> str | None:
+    """Recomendação comercial curta via LLM. Sem chave/contexto/falha -> None."""
+    key = os.getenv("OPENROUTER_API_KEY")
+    if not key or not (contexto_dados or "").strip():
+        return None
+    try:
+        resp = httpx.post(
+            URL, headers=_headers(key),
+            json={
+                "model": MODEL,
+                "messages": [
+                    {"role": "system", "content": SYSTEM_COMERCIAL},
+                    {"role": "user", "content": contexto_dados},
+                ],
+            },
+            timeout=TIMEOUT_S,
+        )
+        resp.raise_for_status()
+        texto = (resp.json().get("choices") or [{}])[0].get("message", {}).get("content", "")
+        return (texto or "").strip() or None
+    except Exception:
+        return None
