@@ -23,8 +23,18 @@ export type UFSigla =
 
 export type RegiaoBR = "Norte" | "Nordeste" | "Centro-Oeste" | "Sudeste" | "Sul";
 
-/** Os 4 estados honestos do documento mestre (§6.2). Nunca "score 90%". */
-export type EstadoEvidencia = "favoravel" | "atencao" | "pendente" | "sem_dado";
+/**
+ * Estados honestos do documento mestre (§6.2). Nunca "score 90%".
+ * "informativo" = dado de CONTEXTO (ex: o que o estado mais produz): existe e é
+ * confiável, mas não é um juízo de valor sobre a lavoura do produtor — por isso
+ * não pode ser pintado de verde "favorável".
+ */
+export type EstadoEvidencia =
+  | "favoravel"
+  | "atencao"
+  | "pendente"
+  | "sem_dado"
+  | "informativo";
 
 /** Estado da camada regional: honesto por padrão até o backend ligar. */
 export type EstadoRegional = "disponivel" | "pendente" | "sem_dado";
@@ -122,6 +132,25 @@ export interface ProducaoUF {
   areaHa: number | null;
   producaoT: number | null;
   safraRef: string | null;
+  /**
+   * O que o número REALMENTE mede. "agricultura" = IBGE PAM, produção real
+   * em toneladas. "sementes" = SIGEF, semente certificada (NÃO é a lavoura).
+   * Sem isso a UI mentia dizendo que o número era "a produção da região".
+   */
+  natureza?: "sementes" | "agricultura" | null;
+  /** Nome amigável quando vier do IBGE (ex.: "Soja"). */
+  culturaLabel?: string | null;
+  /** Ano do dado (IBGE PAM). */
+  ano?: number | null;
+  /** Total das culturas cobertas pela fonte, em toneladas. */
+  producaoTotalT?: number | null;
+  /** Ranking das culturas do ano. */
+  culturas?: Array<{
+    cultura: string;
+    label: string;
+    quantidade_t: number;
+    valor_ton: number;
+  }>;
   fonte: Fonte;
   /** Sempre true enquanto for demonstração local — obriga rótulo "exemplo". */
   exemplo?: boolean;
@@ -134,6 +163,12 @@ export interface SeguroUF {
   apolices: number | null;
   valorSegurado: number | null;
   culturaTopo: string | null;
+  /** true = o número é da cultura do produtor; false = retrato geral da UF
+   * (a cultura dele não tem seguro ali, então mostramos o estado inteiro). */
+  temCulturaProdutor?: boolean;
+  /** Cultura cadastrada pelo produtor (para a frase comparativa). */
+  culturaProdutor?: string | null;
+  taxa_pct?: number | null;
   fonte: Fonte;
   exemplo?: boolean;
 }
@@ -171,6 +206,10 @@ export interface PrecoRef {
   exemplo?: boolean;
   /** Piso PGPM usado como régua de referência no card de contexto de mercado. */
   referencia_piso?: number | null;
+  /** Card Cepea: último preço real que temos (IBGE PAM, média anual da UF). */
+  referencia_ibge?: { ano: number; valor: number; unidade: string } | null;
+  /** Card Cepea: série dos últimos anos (gráfico de tendência dentro do sistema). */
+  serie_ibge?: Array<{ ano: number; valor: number; unidade: string }>;
 }
 
 /** Tipo de solo predominante — dica em linguagem do produtor (ver SOLOS). */

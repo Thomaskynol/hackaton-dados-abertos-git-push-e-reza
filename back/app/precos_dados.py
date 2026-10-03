@@ -17,6 +17,7 @@ import logging
 import os
 import time
 import unicodedata
+from datetime import date
 from functools import lru_cache
 
 log = logging.getLogger(__name__)
@@ -139,6 +140,82 @@ CULTURA_LABEL = {
     "cafe_conilon": "Café conilon",
 }
 
+
+# ---------------------------------------------------------------------------
+# PRODUÇÃO AGRÍCOLA REAL (IBGE PAM — tabela 1612)
+# ---------------------------------------------------------------------------
+# Reaproveita a MESMA série já ingerida para preço (tipo "serie_produtor"),
+# que guarda `quantidade_t` = toneladas produzidas e `valor_ton` = R$/t.
+#
+# POR QUE ISSO EXISTE: o card "O que a região mais produz" usava SIGEF, que
+# é produção de SEMENTE — não da lavoura. Em São Paulo o SIGEF apontava
+# feijão (215 ha de semente) enquanto a produção real é soja (4,7 mi t).
+#
+# Limite honesto: a PAM do IBGE cobre 5 culturas (arroz, feijão, milho, soja,
+# trigo) — NÃO traz cana, café, algodão. Então este card responde "qual das
+# cinco PRECISADAS mais o estado produz", e o texto diz isso explicitamente.
+
+
+def _linhas_serie(col, uf: str, cultura: str | None = None) -> list:
+    """Docs da série do produtor (IBGE) para a UF/cultura. Só Mongo."""
+    try:
+        q: dict = {"tipo": "serie_produtor"}
+        u = (uf or "").strip().upper()
+        if u:
+            q["uf"] = u
+        c = canon_cultura(cultura) if cultura else None
+        if c:
+            q["cultura_canonica"] = c
+        try:
+            return list(col.find(q, {"_id": 0}))
+        except TypeError:
+            return list(col.find(q))
+    except Exception:
+        return []
+
+
+def producao_uf(db, uf: str, cultura: str | None = None) -> dict:
+    """Produção agrícola real por UF (IBGE PAM). Dict ou None.
+
+    Usa o ano mais recente disponível para aquele par (UF, cultura) — assim
+    um estado com dado 2025 e outro com 2024 não se comparam errado.
+    """
+    try:
+        if db is None:
+            return None
+        docs = _linhas_serie(db.precos_conab, uf, cultura)
+        if not docs:
+            return None
+        com_qtd = [d for d in docs if (d.get("quantidade_t") or 0) > 0]
+        if not com_qtd:
+            return None
+        ano = max(int(d.get("ano") or 0) for d in com_qtd)
+        do_ano = [d for d in com_qtd if int(d.get("ano") or 0) == ano]
+        do_ano.sort(key=lambda d: -(d.get("quantidade_t") or 0))
+        topo = do_ano[0]
+        total_t = sum(float(d.get("quantidade_t") or 0) for d in do_ano)
+        return {
+            "uf": (uf or "").upper(),
+            "ano": ano,
+            "culturaTopo": topo.get("cultura_canonica"),
+            "culturaLabel": rotulo_cultura(topo.get("cultura_canonica")),
+            "quantidadeTopoT": float(topo.get("quantidade_t") or 0.0),
+            "totalT": round(total_t, 2),
+            "culturas": [
+                {
+                    "cultura": d.get("cultura_canonica"),
+                    "label": rotulo_cultura(d.get("cultura_canonica")),
+                    "quantidade_t": float(d.get("quantidade_t") or 0),
+                    "valor_ton": float(d.get("valor_ton") or 0),
+                }
+                for d in do_ano
+            ],
+            "cobertura": "arroz, feijão, milho, soja e trigo (culturas da PAM)",
+        }
+    except Exception as e:
+        log.warning("producao_uf falhou uf=%s: %r", uf, e)
+        return None
+
 CEPEA_LINK_PADRAO = "https://www.cepea.esalq.usp.br/br"
 
 # UF -> macrorregião (preço PGPM pode variar por região).
@@ -239,6 +316,14 @@ def bloco_pgpm(db, cultura, uf):
     escolhido = _escolher_pgpm(linhas, uf)
     if escolhido:
         periodo = f"safra {escolhido.get('safra')}" if escolhido.get("safra") else "safra vigente"
+        # Marca o escopo para a UI (front/src/app/(app)/mapa/page.tsx ler este texto):
+        # sem isso o front dizia "no seu estado (XX)" para um piso nacional.
+        escopo = escolhido.get("escopo") or "nacional"
+        escopo_limite = (
+            "Piso específico da sua região."
+            if escopo == "regiao"
+            else "Piso de referência nacional — vale igual em todos os estados."
+        )
         return {
             "tipo": "pgpm", "cultura": cult_label, "uf": None,
             "valor": escolhido["valor"], "unidade": escolhido.get("unidade", "R$/60kg"),
@@ -246,6 +331,7 @@ def bloco_pgpm(db, cultura, uf):
                 escolhido.get("fonte_nome", "CONAB — PGPM (preço mínimo)"),
                 periodo,
                 ["Preço mínimo oficial, não preço de mercado.",
+                 escopo_limite,
                  "Serve de piso para planejar — não diz quando vender."],
                 escolhido.get("fonte_url"),
             ),
@@ -279,10 +365,21 @@ def bloco_mercado(db, cultura, uf):
         piso = pgpm["valor"]
         unidade = pgpm.get("unidade", "R$/60kg")
         piso_fmt = ("R$ %.2f" % piso).replace(".", ",")
+        # Escopo real: diz "no seu estado" só quando o piso É da região da UF.
+        # Senão diz "vale para todo o Brasil" — o produtor precisa saber a
+        # diferença entre o que o governo garante AQUI e a referência nacional.
+        regional = pgpm.get("escopo") == "regiao" and pgpm.get("regiao")
+        escopo_txt = (
+            f"No seu estado ({uf}), o governo garante pelo menos {piso_fmt} por saca"
+            if regional and uf
+            else f"O governo garante no mínimo {piso_fmt} por saca em todo o Brasil"
+        )
+        obs = (pgpm.get("obs") or "").strip().rstrip(".")
         aviso = (
-            f"No seu estado, o governo garante pelo menos {piso_fmt} por saca para o "
-            f"{cult_label.lower()}. O preço do dia costuma ficar acima disso — confira no Cepea ao lado "
-            f"antes de fechar negócio."
+            f"{escopo_txt} para {cult_label.lower()}"
+            + (f". {obs}" if obs else "")
+            + ". O preço do dia costuma ficar acima disso — confira no Cepea ao lado "
+            "antes de fechar negócio."
         )
         return {
             "tipo": "conab_mercado", "cultura": cult_label, "uf": uf,
@@ -309,18 +406,83 @@ def bloco_mercado(db, cultura, uf):
 
 
 def bloco_cepea(db, cultura, uf):
-    """Card Cepea/ESALQ: SÓ link externo, nunca número (licença)."""
+    """Card Cepea/ESALQ.
+
+    O NÚMERO do dia não pode ser copiado (licença do Cepea) — mas isso não
+    significa deixar o card vazio. Entregamos o que É possível ver aqui:
+      · o último preço REAL que temos (IBGE PAM, média anual do estado),
+      · o ano desse número e a série dos últimos anos,
+      · o link do indicador diário para o valor de agora.
+    """
     cult_label = rotulo_cultura(canon_cultura(cultura) if cultura else None)
     linhas = _linhas(db, cultura)
     url = _cepea_url(linhas, cultura)
+
+    # Sem cultura escolhida: usa a MAIOR cultura do estado (IBGE) só como
+    # referência de leitura, deixando isso explícito no texto — assim o card
+    # nunca fica vazio nem finge saber o que o produtor plantou.
+    uf_txt = (uf or "").upper()
+    exe_topo = False
+    if not cultura:
+        try:
+            top = producao_uf(db, uf) if db is not None else None
+            if top and top.get("culturaTopo"):
+                cultura = top["culturaTopo"]
+                cult_label = f"{top.get('culturaLabel') or rotulo_cultura(cultura)} (maior cultura do estado)"
+                linhas = _linhas(db, cultura)
+                url = _cepea_url(linhas, cultura) or url
+                exe_topo = True
+        except Exception:
+            pass
+
+    # Último preço real que temos no IBGE (média anual da UF).
+    ultimo = None
+    serie = []
+    try:
+        serie = serie_historica(db, cultura, uf, anos=5) or []
+        if serie:
+            ultimo = serie[-1]
+    except Exception:
+        serie = []
+
+    if ultimo and uf_txt and uf_txt != "BR":
+        brl = ("R$ %.2f" % float(ultimo.get("valor") or 0)).replace(".", ",")
+        quem = "Maior cultura do estado. " if exe_topo else ""
+        aviso = (
+            f"{quem}Último preço real que temos: {brl}/{ultimo.get('unidade', 'saca 60kg')} "
+            f"em {ultimo.get('ano')} — preço médio anual recebido pelo produtor em "
+            f"{uf_txt} (IBGE). O preço do DIA muda todo dia e só o Cepea publica: "
+            f"toque no link para ver o valor de hoje."
+        )
+    elif ultimo:
+        brl = ("R$ %.2f" % float(ultimo.get("valor") or 0)).replace(".", ",")
+        aviso = (
+            f"Último preço real que temos: {brl}/{ultimo.get('unidade', 'saca 60kg')} "
+            f"em {ultimo.get('ano')} (IBGE). O preço do DIA muda todo dia e só o "
+            f"Cepea publica — toque no link para ver o valor de hoje."
+        )
+    else:
+        aviso = (
+            "O preço do dia muda todo dia e só o Cepea/ESALQ publica esse número. "
+            "Toque no link para ver o valor de agora da sua cultura."
+        )
+
     return {
         "tipo": "cepea", "cultura": cult_label, "uf": None,
         "valor": None, "unidade": "indicador diário",
-        "fonte": _fonte("Cepea/ESALQ — indicador diário (link externo)", "",
-                        ["O número pertence ao Cepea; abrimos o site oficial em vez de copiar."],
-                        url),
-        "data": None, "estado": "link_externo", "url": url,
-        "aviso": "Abre o preço do dia no site oficial do Cepea/ESALQ.",
+        "referencia_ibge": ultimo,
+        "serie_ibge": serie,
+        "fonte": _fonte(
+            "Cepea/ESALQ — indicador diário (link externo) + IBGE PAM (histórico)",
+            f"histórico até {ultimo.get('ano')}" if ultimo else "sem histórico local",
+            ["O número do dia pertence ao Cepea: por licença não o copiamos aqui.",
+             "O histórico exibido é a média anual do preço recebido pelo produtor "
+             "pelo IBGE — não é cotação diária nem preço de mercado.",
+             "Para o preço de hoje, abra o indicador oficial."],
+            url),
+        "data": ultimo.get("ano") if ultimo else None,
+        "estado": "link_externo", "url": url,
+        "aviso": aviso,
     }
 
 
@@ -396,6 +558,35 @@ def _tendencia_linear(serie):
     return a, b
 
 
+def _previsao_ia_ligada() -> bool:
+    """A IA é uma LEITURA sobre a série real, não a fonte do número. Pode ser
+    desligada (PRECO_PREVISAO_IA=0) e o card continua funcionando com a
+    regressão, que é determinística."""
+    return os.getenv("PRECO_PREVISAO_IA", "1").strip().lower() not in ("0", "false", "no")
+
+
+def _ano_alvo_projecao(ultimo_ano_real: int) -> int:
+    """Ano que a estimativa pretende olhar.
+
+    Bug corrigido: era `max(ult.ano + 1, ano_de_hoje)`. Em outubro/2026, com
+    último oficial 2025, isso devolvia 2026 — um ano quase acabando, inútil
+    para quem vai decidir a PRÓXIMA venda. Agora mira a próxima safra
+    (PRECO_ANO_ALVO_OFFSET, default +2 anos a partir do último dado oficial),
+    mas nunca fica no passado nem inventa salto maior que o configurado.
+    """
+    try:
+        offset = int(float(os.getenv("PRECO_ANO_ALVO_OFFSET", "2")))
+    except (TypeError, ValueError):
+        offset = 2
+    offset = max(1, min(3, offset))
+    alvo = int(ultimo_ano_real) + offset
+    # Nunca projeta para trás; se o alvo ficou no passado, joga para hoje+1.
+    hoje = date.today().year
+    if alvo < hoje:
+        alvo = hoje + 1
+    return alvo
+
+
 def resumo_tendencia(db, cultura, uf):
     """Resumo honesto da série para alimentar a análise/predição da IA.
 
@@ -417,12 +608,12 @@ def resumo_tendencia(db, cultura, uf):
     a, b = _tendencia_linear(serie[-8:] if len(serie) >= 8 else serie)
     projecao = None
     direcao = "estável"
+    var_anual = None
+    var_anual_medio = None
+    proj_tendencia = None
     if a is not None:
-        # Projeta sempre 1 ano à frente do ÚLTIMO DADO REAL — assim a estimativa
-        # fica ancorada no presente e perto da realidade (nunca extrapola anos a
-        # fio no escuro). Se por acaso esse ano já passou, avança para o ano que vem.
-        from datetime import date as _date
-        prox_ano = max(ult["ano"] + 1, _date.today().year)
+        # Passo 2: mira a PRÓXIMA safra, não o ano corrente já quase acabado.
+        prox_ano = _ano_alvo_projecao(ult["ano"])
         proj = a * prox_ano + b
         # faixa de incerteza: base = dispersão dos resíduos recentes, crescendo
         # conforme o ano projetado se afasta do último dado real.
@@ -436,7 +627,10 @@ def resumo_tendencia(db, cultura, uf):
         teto = ult["valor"] * (1 + 0.35 * anos_adiante)
         piso = ult["valor"] * (1 - 0.35 * anos_adiante)
         proj = round(min(max(proj, max(0.0, piso)), teto), 2)
-        projecao = {
+        # Passo 5: a regressão é SEMPRE calculada e devolvida, mesmo quando a IA
+        # responde. Assim existe um número determinístico, auditável e
+        # reproduzível na tela — a IA vira leitura, não a única fonte do valor.
+        proj_tendencia = {
             "ano": prox_ano,
             "valor_estimado": proj,
             "faixa_min": round(max(0.0, proj - margem), 2),
@@ -445,35 +639,80 @@ def resumo_tendencia(db, cultura, uf):
             "origem": "tendencia",
             "racional": None,
         }
-        # direção pela inclinação relativa à média recente
-        if media_rec and abs(a) / media_rec > 0.02:
-            direcao = "subindo" if a > 0 else "caindo"
+        projecao = proj_tendencia
+        # Direção: o selo tem que refletir o ÚLTIMO MOVIMENTO REAL, não a
+        # reta de 8 anos. Bug corrigido: a inclinação longa é nominal (sobe
+        # com a inflação em TODAS as culturas), então as 15 combinações
+        # teste/test_producao diziam "subindo" — inclusive o feijão de SP que
+        # CAIU 19,4% (298,80 -> 240,90). Isso é o produtor tomar uma decisão
+        # de venda pelo contrário. Agora o selo segue o último ano, e a
+        # tendência longa vira um número separado, com o valor nominal
+        # declarado (não é alta de preço real, é alta de preço nominal).
+        if len(serie) >= 2:
+            pen = serie[-2]
+            var_anual = (ult["valor"] / pen["valor"] - 1.0) if pen["valor"] else 0.0
+            var_anual = round(var_anual * 100.0, 1)
+            # Faixa morta de ±3%: dentro dela o preço "está parado", e dizer
+            # "subindo" seria leitura de ruído.
+            if var_anual > 3:
+                direcao = "subindo"
+            elif var_anual < -3:
+                direcao = "caindo"
+            else:
+                direcao = "estável"
+        else:
+            var_anual = None
+        # Inclinação nominal da reta (só para contexto, com aviso explícito).
+        var_anual_medio = None
+        if a is not None and media_rec:
+            var_anual_medio = round((a / media_rec) * 100.0, 1)
 
-        # Previsão por IA: usa a série REAL como entrada. Se houver chave e o
-        # modelo responder, ela substitui a regressão (que vira o fallback).
-        try:
-            from .llm import prever_preco_ia
-            cult_label = rotulo_cultura(canon_cultura(cultura))
-            ia = prever_preco_ia(cult_label, (uf or "").upper(), ult["unidade"], serie, prox_ano)
-            if ia and ia.get("valor_estimado"):
-                # Mesmo clamp de realidade aplicado à IA: ela usa a série real,
-                # mas ainda assim não deixamos a estimativa fugir do último preço.
-                ia["valor_estimado"] = round(min(max(ia["valor_estimado"], max(0.0, piso)), teto), 2)
-                if ia.get("faixa_min") is not None:
-                    ia["faixa_min"] = round(min(max(ia["faixa_min"], 0.0), ia["valor_estimado"]), 2)
-                if ia.get("faixa_max") is not None:
-                    ia["faixa_max"] = round(max(ia["faixa_max"], ia["valor_estimado"]), 2)
-                projecao = ia
-        except Exception:
-            pass
+        # Previsão por IA: usa a série REAL como entrada. É COMPLEMENTO da
+        # regressão, não substituto — se desligar (PRECO_PREVISAO_IA=0) ou se
+        # falhar, o número determinístico da regressão continua na tela.
+        if _previsao_ia_ligada():
+            try:
+                from .llm import prever_preco_ia
+                cult_label = rotulo_cultura(canon_cultura(cultura))
+                ia = prever_preco_ia(cult_label, (uf or "").upper(), ult["unidade"],
+                                     serie, prox_ano, db=db)
+                if ia and ia.get("valor_estimado"):
+                    # Mesmo clamp de realidade aplicado à IA: ela usa a série real,
+                    # mas ainda assim não deixamos a estimativa fugir do último preço.
+                    ia["valor_estimado"] = round(min(max(ia["valor_estimado"], max(0.0, piso)), teto), 2)
+                    if ia.get("faixa_min") is not None:
+                        ia["faixa_min"] = round(min(max(ia["faixa_min"], 0.0), ia["valor_estimado"]), 2)
+                    if ia.get("faixa_max") is not None:
+                        ia["faixa_max"] = round(max(ia["faixa_max"], ia["valor_estimado"]), 2)
+                    ia["valor_tendencia"] = (proj_tendencia or {}).get("valor_estimado")
+                    projecao = ia
+            except Exception as e:
+                log.info("previsao IA indisponivel, segue regressao: %r", e)
 
     por_ia = bool(projecao and projecao.get("origem") == "ia")
     como = "pela IA, a partir da série real do IBGE" if por_ia else "pela tendência dos últimos anos"
-    aviso = (f"Estimativa feita {como}. É apoio ao planejamento, não garantia de preço.")
-    if projecao and (projecao["ano"] - ult["ano"]) >= 2:
-        aviso = (f"O dado oficial mais recente do IBGE é de {ult['ano']}; a estimativa para "
-                 f"{projecao['ano']} foi feita {como}, com margem maior por olhar mais anos à frente. "
-                 f"É apoio ao planejamento, não garantia de preço.")
+
+    # Defasagem: o IBGE publica com atraso, então a estimativa olha para a
+    # PRÓXIMA safra. O aviso precisa dizer isso — antes só aparecia com 2+ anos
+    # de defasagem, ou seja NUNCA.
+    aviso = f"Estimativa feita {como}. É apoio ao planejamento, não garantia de preço."
+    if projecao:
+        defasagem = projecao["ano"] - ult["ano"]
+        ano_corrente = date.today().year
+        if projecao["ano"] <= ano_corrente:
+            aviso = (f"Último preço oficial do IBGE: {ult['ano']}. A estimativa para "
+                     f"{projecao['ano']} foi feita {como}, mas esse ano já passou — use-a como "
+                     f"histórico, não como previsão. É apoio ao planejamento, não garantia de preço.")
+        elif projecao["ano"] == ano_corrente:
+            aviso = (f"Último preço oficial do IBGE: {ult['ano']}, a média anual que o produtor "
+                     f"recebeu na sua região. A estimativa para {projecao['ano']} foi feita {como} — "
+                     f"como o ano já está em andamento, ela serve mais como referência de patamar "
+                     f"do que como previsão fechada. É apoio ao planejamento, não garantia de preço.")
+        else:
+            aviso = (f"O último preço oficial do IBGE é de {ult['ano']}. Esta é uma estimativa "
+                     f"para a próxima safra ({projecao['ano']}), feita {como} olhando "
+                     f"{defasagem} anos à frente do dado real — por isso a faixa é larga. "
+                     f"É apoio ao planejamento, não garantia de preço.")
 
     return {
         "estado": "disponivel",
@@ -485,8 +724,16 @@ def resumo_tendencia(db, cultura, uf):
         "menor": menor,
         "maior": maior,
         "direcao": direcao,
+        # Variação do ÚLTIMO ano em % (base do selo "subindo/caindo").
+        "variacao_ultimo_ano": var_anual,
+        # Inclinação NOMINAL da reta (%/ano) — contexto, não previsão.
+        "variacao_media_anual": var_anual_medio,
+        # Passo 5: regressão sempre presente. É o número DETERMINÍSTICO — a IA
+        # pode variar, esta não. O front mostra as duas lado a lado.
+        "projecao_tendencia": proj_tendencia,
         "projecao": projecao,
         "serie": serie,
-        "fonte": "IBGE — Produção Agrícola Municipal (PAM)",
+        "fonte": "IBGE — Produção Agrícola Municipal (PAM), tabela 1612",
+        "periodicidade": "valor médio ANUAL por UF (valor da produção ÷ quantidade)",
         "aviso": aviso,
     }

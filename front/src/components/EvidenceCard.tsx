@@ -9,6 +9,7 @@ import {
   ChevronDown,
   FileText,
   Lightbulb,
+  Info,
 } from "lucide-react";
 import type { Evidencia, EstadoEvidencia } from "@/lib/types";
 
@@ -58,6 +59,14 @@ const META: Record<
     Icone: MinusCircle,
     rotulo: "Sem dado ainda",
     oQueSignifica: "a base oficial ainda não ligou",
+  },
+  informativo: {
+    cor: "text-sky-700",
+    faixa: "bg-sky-500",
+    chip: "bg-sky-100",
+    Icone: Info,
+    rotulo: "Contexto da região",
+    oQueSignifica: "dado para você comparar, não uma avaliação da sua lavoura",
   },
 };
 

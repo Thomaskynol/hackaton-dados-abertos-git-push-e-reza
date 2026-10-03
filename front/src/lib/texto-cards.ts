@@ -72,12 +72,17 @@ const CULTURAS: Record<string, CulturaLegivel> = {
 
 /** Normaliza para a chave canônica: "Feijão Cores" → "feijao_cores". */
 function chaveCanonica(bruto: string): string {
+  // ATENÇÃO à ordem: o trim() vem ANTES de trocar espaço por "_". Se viesse
+  // depois, " feijao " virava "_feijao_" e deixava de casar com "feijao" —
+  // era o que fazia o card dizer "é pouco produzida por aqui" para quem tem
+  // feijão no perfil.
   return bruto
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
+    .trim()
     .replace(/[\s-]+/g, "_")
-    .trim();
+    .replace(/^_+|_+$/g, "");
 }
 
 /** Fallback honesto: só capitaliza, sem inventar acento. */
@@ -116,6 +121,11 @@ export function rotuloCulturaAmigavel(bruto?: string | null): string {
   return culturaLegivel(bruto).nome;
 }
 
+/** 1 → "1º", 2 → "2º"... (pt-BR, forma curta e simples). */
+function ordinal(n: number): string {
+  return `${n}º`;
+}
+
 /* ------------------------------------------------------------------ */
 /* 2. Números e unidades em pt-BR                                     */
 /* ------------------------------------------------------------------ */
@@ -139,6 +149,14 @@ export function hectares(valor: number): string {
 /** 742 → "742 toneladas" (1 → "1 tonelada"). */
 export function toneladas(valor: number): string {
   return `${numeroBR(valor)} ${plural(valor, "tonelada", "toneladas")}`;
+}
+
+/** 4731554 → "4,73 milhões de t"; 159635 → "159,6 mil t"; 742 → "742 t". */
+export function formatarMilhar(valor: number): string {
+  const n = Math.abs(valor);
+  if (n >= 1_000_000) return `${(valor / 1_000_000).toFixed(2).replace(".", ",")} milhões de t`;
+  if (n >= 100_000) return `${(valor / 1000).toFixed(1).replace(".", ",")} mil t`;
+  return `${numeroBR(valor)} t`;
 }
 
 /**
@@ -200,53 +218,129 @@ function semDado(queE: string): TextoCard {
  * + fichas com o número compacto e uma `dica` em palavra simples.
  */
 export function producaoEmTexto(
-  p: Pick<ProducaoUF, "estado" | "culturaTopo" | "areaHa" | "producaoT" | "safraRef">,
+  p: Pick<ProducaoUF, "estado" | "culturaTopo" | "culturaLabel" | "areaHa"
+      | "producaoT" | "producaoTotalT" | "culturas" | "safraRef" | "natureza" | "ano">,
   regiao: string,
+  culturaProdutor?: string | null,
 ): TextoCard {
   const temDado =
     p.estado === "disponivel" &&
     (p.culturaTopo != null || p.areaHa != null || p.producaoT != null);
 
-  if (!temDado) return semDado("os dados de produção do SIGEF");
+  if (!temDado) return semDado("os dados de produção do IBGE");
 
   const cult = culturaLegivel(p.culturaTopo);
-  const safra = safraAmigavel(p.safraRef);
+  const nomeCult = p.culturaLabel ?? cult.nome;
+  const safra = p.ano != null ? String(p.ano) : safraAmigavel(p.safraRef);
+
+  // --- Caso 1: IBGE PAM — produção REAL em toneladas ---------------------
+  if (p.natureza === "agricultura" && p.producaoT != null) {
+    const topo = formatarMilhar(p.producaoT);
+    const lista = p.culturas ?? [];
+
+    // Onde a cultura do PRODUTOR está nesse ranking? (feijão, no exemplo)
+    // Compara pela chave canônica: o perfil pode gravar "feijao" (id do
+    // onboarding) OU "feijão" (com acento, vindo do backend/typed), e os
+    // dois são o MESMO produto. Sem isso, "feijão" caía no ramo de
+    // "é pouco produzida por aqui" — falso, e ainda escondia a ficha dele.
+    const alvo = chaveCanonica(culturaProdutor || "");
+    const idxProdutor = alvo
+      ? lista.findIndex((c) => chaveCanonica(c.cultura) === alvo)
+      : -1;
+    const doProdutor = idxProdutor >= 0 ? lista[idxProdutor] : null;
+    const lider = culturaLegivel(p.culturaTopo);
+    const prod = culturaLegivel(alvo || null);
+
+    // Frase principal: curta e direta. Primeiro o líder do estado; depois,
+    // SE o produtor tem cultura cadastrada, onde ela aparece nesse ranking.
+    let detalhe = `Em ${regiao}, quem mais se produz é ${lider.artigo} ${lider.nome} (${topo}${safra ? `, em ${safra}` : ""}).`;
+    if (doProdutor) {
+      detalhe += ` A sua cultura, ${prod.artigo} ${prod.nome}, aparece em ${ordinal(idxProdutor + 1)} lugar, com ${formatarMilhar(doProdutor.quantidade_t)}.`;
+    } else if (alvo) {
+      detalhe += ` A sua cultura, ${prod.artigo} ${prod.nome}, é pouco produzida por aqui — não entra entre as principais do estado.`;
+    }
+
+    // Fichas: foco na cultura do produtor quando houver; senão, o líder.
+    const fichas: DestaqueCard[] = [];
+    if (doProdutor) {
+      fichas.push({
+        rotulo: `${doProdutor.label} (sua cultura)`,
+        valor: formatarMilhar(doProdutor.quantidade_t),
+        dica: `${ordinal(idxProdutor + 1)} lugar no estado`,
+      });
+    }
+    fichas.push({
+      rotulo: `${nomeCult} (líder)`,
+      valor: topo,
+      dica: "a mais produzida no estado",
+    });
+    if (safra)
+      fichas.push({ rotulo: "Ano do dado", valor: safra, dica: "referência (IBGE)" });
+
+    return {
+      detalhe,
+      destaques: fichas,
+      leitura: doProdutor
+        ? "É só contexto do estado — compare com a sua lavoura para sentir o tamanho do mercado e quantos vizinhos plantam o mesmo que você."
+        : "É só contexto do estado. Culturas como cana e café não entram nesta lista do IBGE.",
+    };
+  }
+
+  // --- Caso 2: SIGEF — semente certificada (NÃO é a lavoura) -------------
+
+  // SIGEF mede SEMENTE certificada, não a lavoura. Dizer "a cultura que mais
+  // se planta na região" seria mentira — corrigido aqui.
+  const eSemente = p.natureza === "sementes";
 
   const medidas: { texto: string; singular: boolean }[] = [];
   if (p.areaHa != null)
-    medidas.push({ texto: `${hectares(p.areaHa)} de área plantada`, singular: eSingular(p.areaHa) });
+    medidas.push({
+      texto: eSemente
+        ? `${hectares(p.areaHa)} de semente certificada`
+        : `${hectares(p.areaHa)} de área plantada`,
+      singular: eSingular(p.areaHa),
+    });
   if (p.producaoT != null)
-    medidas.push({ texto: `${toneladas(p.producaoT)} de produção`, singular: eSingular(p.producaoT) });
+    medidas.push({
+      texto: eSemente
+        ? `${toneladas(p.producaoT)} de sementes`
+        : `${toneladas(p.producaoT)} de produção`,
+      singular: eSingular(p.producaoT),
+    });
 
-  const periodo = safra ? `, no período de ${safra}` : "";
+  const periodo = safra ? `, na safra de ${safra}` : "";
 
   const destaques: DestaqueCard[] = [];
   if (p.areaHa != null)
     destaques.push({
-      rotulo: "Área plantada",
+      rotulo: eSemente ? "Área de semente" : "Área plantada",
       valor: `${numeroBR(p.areaHa)} ha`,
-      dica: "hectares ocupados por essa cultura",
+      dica: eSemente ? "hectares de semente certificada" : "hectares da lavoura",
     });
   if (p.producaoT != null)
     destaques.push({
-      rotulo: "Produção",
+      rotulo: eSemente ? "Sementes" : "Produção",
       valor: `${numeroBR(p.producaoT)} t`,
-      dica: "toneladas produzidas",
+      dica: eSemente ? "toneladas de semente" : "toneladas produzidas",
     });
   if (safra)
-    destaques.push({ rotulo: "Período", valor: safra, dica: "safra de referência" });
-
-  const sujeito = `É ${cult.artigo} ${cult.nome}, a cultura que mais se planta em ${regiao}.`;
-  const detalhe =
-    medidas.length > 0
-      ? `${sujeito} ${serPara(medidas)} ${juntar(medidas.map((m) => m.texto))}${periodo}.`
-      : `${sujeito} O total publicado pelo SIGEF ainda não foi exposto.`;
+    destaques.push({
+      rotulo: "Safra",
+      valor: safra,
+      dica: eSemente ? "safra antiga — ordem de grandeza" : "período do dado",
+    });
 
   return {
-    detalhe,
+    detalhe:
+      `${cult.artigo === "a" ? "A" : "O"} ${cult.nome} tem a maior área de semente certificada em ${regiao}. ` +
+      (medidas.length > 0
+        ? `${serPara(medidas)} ${juntar(medidas.map((m) => m.texto))}${periodo}.`
+        : ""),
     destaques,
     leitura:
-      "Compare com a área e a colheita da sua propriedade para ver se você está na média da região.",
+      "Atenção: isto é a produção de SEMENTE, não a da sua lavoura. A cultura " +
+      "que mais se planta na roça pode ser outra — este dado mostra o tamanho " +
+      "da produção de semente.",
   };
 }
 
@@ -258,32 +352,49 @@ export function producaoEmTexto(
  *         São 7 apólices, entre 2016 e 2024."
  */
 export function seguroEmTexto(
-  s: Pick<SeguroUF, "estado" | "apolices" | "valorSegurado" | "culturaTopo"> & {
+  s: Pick<SeguroUF, "estado" | "apolices" | "valorSegurado" | "culturaTopo"
+      | "temCulturaProdutor" | "culturaProdutor"> & {
     taxa_pct?: number | null;
     periodo?: string | null;
   },
   regiao: string,
 ): TextoCard {
   const temDado = s.estado === "disponivel" && s.apolices != null;
-
   if (!temDado) return semDado("o histórico de seguro rural");
 
-  const cult = culturaLegivel(s.culturaTopo);
   const n = s.apolices ?? 0;
   const quantos = `${numeroBR(n)} ${plural(n, "produtor fez", "produtores fizeram")}`;
+  const topo = culturaLegivel(s.culturaTopo);
 
-  // Frase principal — conversa, sem jargão ("apólice" vira "contratou seguro").
+  // Caso B: o estado TEM seguro, mas não na cultura do produtor. Dado real:
+  // dizemos que a cultura dele é pouco segurada ali e qual é a mais segurada.
+  if (s.temCulturaProdutor === false) {
+    const prod = culturaLegivel(s.culturaProdutor);
+    const detalhe =
+      `Em ${regiao}, ainda quase não há seguro rural para ${prod.artigo} ${prod.nome} — a sua cultura. ` +
+      `No estado, quem mais contrata seguro é ${outraArea(s.culturaTopo, topo)}: ${quantos} seguro da safra. ` +
+      `Vale conversar no banco ou na cooperativa para ver se dá para proteger a sua lavoura também.`;
+    return {
+      detalhe,
+      destaques: [
+        { rotulo: "Seguro na sua cultura", valor: "quase nada", dica: `pouco ${prod.nome.toLowerCase()} segurado nesta UF` },
+        { rotulo: "Mais segurada no estado", valor: nomeArea(s.culturaTopo, topo), dica: "o que mais contrata seguro aqui" },
+      ],
+      leitura:
+        "O seguro rural (Proagro / PSR) devolve parte do prejuízo se a safra se perder por clima. " +
+        "Pouca procura na sua cultura só quer dizer que poucos vizinhos ainda fazem — não que você não possa.",
+    };
+  }
+
+  // Caso A: há seguro na cultura do produtor (ou retrato geral com cultura topo).
   const detalhe =
-    `Em ${regiao}, o seguro rural tem mais procura ${cult.nome !== "sua cultura" ? `n${cult.artigo === "a" ? "a" : "o"} ${cult.nome}` : "nas lavouras da região"}: ` +
+    `Em ${regiao}, o seguro rural tem procura ${topo.nome !== "a cultura principal" ? `n${topo.artigo === "a" ? "a" : "o"} ${topo.nome}` : "nas lavouras da região"}: ` +
     `${quantos} seguro da safra para se proteger de seca, geada e chuva demais. ` +
     `Quanto mais vizinho já faz, mais fácil é contratar o seu também.`;
 
-  const destaques: DestaqueCard[] = [];
-  destaques.push({
-    rotulo: "Quem já se protege",
-    valor: numeroBR(n),
-    dica: "produtores com seguro da safra na região",
-  });
+  const destaques: DestaqueCard[] = [
+    { rotulo: "Quem já se protege", valor: numeroBR(n), dica: "produtores com seguro da safra na região" },
+  ];
   if (s.valorSegurado != null && s.valorSegurado > 0)
     destaques.push({
       rotulo: "Já foi pago em perdas",
@@ -293,7 +404,7 @@ export function seguroEmTexto(
   if (s.culturaTopo)
     destaques.push({
       rotulo: "Cultura mais segurada",
-      valor: cult.nome,
+      valor: nomeArea(s.culturaTopo, topo),
       dica: "a que mais contrata seguro por aqui",
     });
 
@@ -303,6 +414,20 @@ export function seguroEmTexto(
     leitura:
       "O seguro rural (Proagro / PSR) devolve parte do prejuízo se a safra se perder por clima. Vale perguntar no banco ou na cooperativa na hora do plantio.",
   };
+}
+
+/** Nome curto da "cultura topo" tratando o caso pecuária (não é cultura). */
+function nomeArea(culturaTopo: string | null | undefined, legivel: CulturaLegivel): string {
+  const c = (culturaTopo || "").toLowerCase();
+  if (c.startsWith("pecuar") || c === "bovino" || c === "gado") return "a pecuária";
+  return legivel.nome;
+}
+
+/** Expressão "a pecuária" / "o milho" para encaixar na frase. */
+function outraArea(culturaTopo: string | null | undefined, legivel: CulturaLegivel): string {
+  const c = (culturaTopo || "").toLowerCase();
+  if (c.startsWith("pecuar") || c === "bovino" || c === "gado") return "a pecuária";
+  return `${legivel.artigo} ${legivel.nome}`;
 }
 
 /**

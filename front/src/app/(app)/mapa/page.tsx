@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { MapPin, LocateFixed, MessageCircle, TrendingUp } from "lucide-react";
 import { MapaBrasil } from "@/components/MapaBrasil";
-import { PainelRegional } from "@/components/PainelRegional";
+import { PainelLocal } from "@/components/PainelLocal";
 import { precisaOnboarding, usePerfil } from "@/lib/perfil-context";
 import { UFS, insightsDaUF, infoDaUF, ufDoPerfil } from "@/lib/mapa-local";
 import { precosDaUF, rotuloCultura } from "@/lib/precos";
@@ -19,9 +19,17 @@ function ConsultorComercial({ uf, culturaId, precos }: { uf: UFSigla; culturaId:
   const mercado = precos.find((p) => p.tipo === "conab_mercado");
   const pgpm = precos.find((p) => p.tipo === "pgpm");
   const piso = pgpm?.valor ?? mercado?.referencia_piso ?? null;
+  const pisoFmt = piso?.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  // O escopo do piso vem do backend: regional (da sua região) ou nacional.
+  // Bug corrigido: o front dizia "no seu estado (XX)" mesmo quando o piso é
+  // nacional — enganava o produtor. Agora respeita o que o dado diz.
+  const pisoRegional = pgpm?.fonte?.limitacoes?.includes("Piso específico da sua região");
+  const escopo = pisoRegional
+    ? `No seu estado (${uf})`
+    : "Em todo o Brasil";
   const texto =
-    piso != null
-      ? `No seu estado (${uf}), o governo garante pelo menos ${piso.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} por saca de ${cultura.toLowerCase()}. É o piso para você planejar — o preço do dia veja no Cepea. Nada aqui é ordem de venda.`
+    pisoFmt != null
+      ? `${escopo}, o governo garante pelo menos ${pisoFmt} por saca de ${cultura.toLowerCase()}. É o piso para você planejar — o preço do dia veja no Cepea. Nada aqui é ordem de venda.`
       : `Em ${uf}, ainda não temos um piso de referência para ${cultura.toLowerCase()}. Veja o preço do dia no Cepea, na aba Preços. Nada aqui é ordem de venda.`;
   return (
     <section aria-label="Consultor comercial" className="relative overflow-hidden rounded-xl2 border border-line bg-surface p-4 sm:p-5 shadow-card card-hover">
@@ -152,6 +160,11 @@ function ConteudoMapa() {
 
   const resumo = remoto ?? base;
 
+  // Painel só aparece quando o produtor escolheu ativamente um lugar: clicou
+  // numa UF (uf !== null) ou aproximou num município. No primeiro acesso mostra
+  // um convite para tocar no mapa.
+  const selecaoAtiva = uf !== null || municipio !== null;
+
   if (!carregado) return null;
 
   const intro =
@@ -237,35 +250,43 @@ function ConteudoMapa() {
           </div>
         </div>
 
-        {/* Coluna Direita: Informações Regionais e Ações */}
+        {/* Coluna Direita: Painel do lugar selecionado */}
         <div className="lg:col-span-5 xl:col-span-5 space-y-4 lg:sticky lg:top-20">
-          {municipio ? (
-            <div className="flex items-center gap-3 rounded-xl2 border border-terra/60 bg-terra-soft/80 p-3.5 shadow-soft animate-fade-up" role="status">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-terra text-white shadow-soft">
-                <MapPin size={20} />
+          {selecaoAtiva ? (
+            <>
+              <div key={`${selecionada}-${municipio?.ibge ?? "uf"}`}>
+                <PainelLocal
+                  resumo={resumo}
+                  municipioNome={municipio?.nome ?? null}
+                  ibge={municipio?.ibge ?? null}
+                  culturaProdutorId={culturaId}
+                />
+              </div>
+
+              <Link
+                href={`/assistente?uf=${selecionada}`}
+                className="inline-flex min-h-[54px] w-full items-center justify-center gap-2.5 rounded-xl2 bg-terra px-6 font-bold text-white shadow-card transition hover:brightness-105 active:scale-[0.99]"
+              >
+                <MessageCircle size={20} aria-hidden />
+                <span>Perguntar ao Copiloto sobre {municipio?.nome ?? selecionada}</span>
+              </Link>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-line bg-surface/60 p-8 text-center shadow-soft animate-fade-up">
+              <span className="grid h-14 w-14 place-items-center rounded-2xl bg-terra-soft text-terra-ink">
+                <MapPin size={26} aria-hidden />
               </span>
-              <div className="min-w-0 flex-1">
-                <p className="font-display font-extrabold text-ink text-[1.05rem] truncate">
-                  {municipio.nome}
+              <div>
+                <p className="font-display text-[1.1rem] font-extrabold text-ink">
+                  Escolha um lugar no mapa
                 </p>
-                <p className="text-[0.8rem] font-semibold text-terra-ink">
-                  Código IBGE: {municipio.ibge} · {remoto ? "Dados integrados da região" : "Cenário estadual (UF)"}
+                <p className="mt-1 text-[0.9rem] leading-relaxed text-muted">
+                  Toque num estado para ver o cenário da região, ou aproxime num município
+                  para o retrato local: produção, solo, seguro, irrigação e canais de venda.
                 </p>
               </div>
             </div>
-          ) : null}
-
-          <div key={selecionada} className="transition-all">
-            <PainelRegional resumo={resumo} />
-          </div>
-
-          <Link
-            href={`/assistente?uf=${selecionada}`}
-            className="inline-flex min-h-[54px] w-full items-center justify-center gap-2.5 rounded-xl2 bg-terra px-6 font-bold text-white shadow-card transition hover:brightness-105 active:scale-[0.99]"
-          >
-            <MessageCircle size={20} aria-hidden />
-            <span>Perguntar ao Copiloto sobre esta região</span>
-          </Link>
+          )}
         </div>
       </div>
     </div>

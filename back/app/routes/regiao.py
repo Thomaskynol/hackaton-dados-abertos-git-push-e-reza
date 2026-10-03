@@ -49,9 +49,22 @@ SOLO_SIMPLES = {
 }
 
 SOLO_DESCRICAO = {
-    "arenoso": "Solo arenoso: a água escorre rápido; precisa de chuva ou rega mais frequente. Predominante na sua região (ZARC).",
-    "media": "Solo médio: equilibra água e drenagem; serve para a maioria das culturas. Predominante na sua região (ZARC).",
-    "argiloso": "Solo argiloso: segura a água por mais tempo; cuidado com encharco. Predominante na sua região (ZARC).",
+    # IMPORTANTE: estas descrições são do SOLO DE ZARC (ad1/ad3...), que é
+    # "água disponível para a cultura" — NÃO é o tipo de solo do município.
+    # Dizer "solo predominante da região" com esse dado era enganoso: o
+    #_latossolo_ é o solo real de SP, e não aparece aqui em lugar nenhum.
+    "arenoso": (
+        "Nos campos zoneados aqui, o solo aparece como arenoso (AD1/AD2) — "
+        "solta a água rápido, por isso precisa de chuva ou rega mais frequente."
+    ),
+    "media": (
+        "Nos campos zoneados aqui, o solo aparece como médio (AD3/AD4) — "
+        "equilibra água e drenagem, serve para a maioria das culturas."
+    ),
+    "argiloso": (
+        "Nos campos zoneados aqui, o solo aparece como argiloso (AD5/AD6) — "
+        "segura a água por mais tempo; cuidado com encharco."
+    ),
 }
 
 
@@ -136,7 +149,17 @@ def _bloco_solo(db, ibge: str, uf: str) -> dict:
         return {
             "uf": uf, "estado": "disponivel", "soloId": simples,
             "descricao": SOLO_DESCRICAO[simples],
-            "fonte": _fonte("ZARC / solos (MAPA)", "2026/2027"),
+            "natureza": "zarc_disponibilidade_agua",
+            "fonte": _fonte(
+                "MAPA — ZARC (disponibilidade de água por tipo de solo, AD1-AD6)",
+                "2026/2027",
+                ["Isto é a classe de solo usada no zoneamento de risco, não o "
+                 "tipo de solo do município.",
+                 "O solo que mais cobre a região (Latossolo/Argissolo) não é "
+                 "medido por esta fonte.",
+                 "Para o solo de verdade, consulte o levantamento de solos da "
+                 "Embrapa (RADID/PROFLAMA)."],
+            ),
         }
     alvo = ibge or uf
     return {
@@ -147,7 +170,61 @@ def _bloco_solo(db, ibge: str, uf: str) -> dict:
     }
 
 
+def _bloco_producao_real(db, uf: str) -> dict:
+    """Produção agrícola REAL por UF (IBGE PAM, série já ingerida).
+
+    Preferida sobre o SIGEF: o SIGEF mede semente, não lavoura.
+    Retorna estado "sem_dado" honesto se não houver dado.
+    """
+    try:
+        from ..precos_dados import producao_uf
+    except Exception:
+        return {"uf": uf, "estado": "sem_dado", "culturaTopo": None,
+                "areaHa": None, "producaoT": None, "safraRef": None,
+                "natureza": None,
+                "fonte": _fonte("IBGE — PAM (tabela 1612)", "",
+                                ["Camada de produção ainda não conectada."])}
+    try:
+        d = producao_uf(db, uf) if db is not None else None
+    except Exception as e:
+        log.warning("producao_uf falhou: %r", e)
+        d = None
+    if not d:
+        return {
+            "uf": uf, "estado": "sem_dado", "culturaTopo": None,
+            "areaHa": None, "producaoT": None, "safraRef": None,
+            "natureza": None,
+            "fonte": _fonte("IBGE — PAM (tabela 1612)", "",
+                            [f"Sem dado de produção para {uf}."]),
+        }
+    ano = d.get("ano")
+    return {
+        "uf": uf, "estado": "disponivel",
+        "culturaTopo": d.get("culturaTopo"),
+        "culturaLabel": d.get("culturaLabel"),
+        "producaoT": d.get("quantidadeTopoT"),
+        "producaoTotalT": d.get("totalT"),
+        "culturas": d.get("culturas") or [],
+        "safraRef": str(ano) if ano else None,
+        "ano": ano,
+        "natureza": "agricultura",
+        "fonte": _fonte(
+            "IBGE — Produção Agrícola Municipal (PAM), tabela 1612",
+            f"ano {ano}" if ano else "ano mais recente",
+            ["Mede as culturas da PAM: arroz, feijão, milho, soja e trigo.",
+             "Não inclui cana, café ou algodão — para o total geral do estado "
+             "consulte a PAM completa do IBGE."],
+        ),
+    }
+
+
 def _bloco_producao(db, ibge: str, cultura: str | None, uf: str) -> dict:
+    # 1) produção real por UF (IBGE PAM) — dado certo, ano recente
+    real = _bloco_producao_real(db, uf)
+    if real.get("estado") == "disponivel":
+        return real
+
+    # 2) SIGEF como reserva (mas deixando claro que é semente, não lavoura)
     if db is not None and ibge:
         args = {"cod_ibge": ibge}
         if cultura:
@@ -169,7 +246,14 @@ def _bloco_producao(db, ibge: str, cultura: str | None, uf: str) -> dict:
                     "areaHa": a.get("area_total_ha"),
                     "producaoT": bruta or est or None,
                     "safraRef": "2013–2017",
-                    "fonte": _fonte("SIGEF Sementes / MAPA", "2013–2017"),
+                    "natureza": "sementes",
+                    "fonte": _fonte(
+                        "SIGEF — produção de SEMENTES certificadas (MAPA)",
+                        "2013–2017",
+                        ["Isto é semente certificada, não a produção agrícola do município.",
+                         "A cultura com maior área de semente não é necessariamente a de maior produção agrícola.",
+                         "Safra antiga (2013–2017): use como ordem de grandeza, não como número atual."],
+                    ),
                 }
             except Exception as e:
                 log.warning("mapeamento sigef falhou: %r", e)
@@ -211,26 +295,56 @@ def _bloco_seguro(db, ibge: str, cultura: str | None, uf: str) -> dict:
             except Exception as e:
                 log.warning("mapeamento psr falhou: %r", e)
 
-    # 2) sem município (ou sem match): agrega o estado inteiro — retrato real da UF
+    # 2) sem município (ou sem match): agrega o estado inteiro — retrato real da UF.
+    #    Primeiro tenta a cultura do produtor; se ela não tem seguro na UF, cai
+    #    para o retrato GERAL do estado (sem filtro) — a base está ligada e tem
+    #    dado, só não para aquela cultura. Isso evita o enganoso "sem dado".
     if db is not None:
-        try:
-            ag = agregar_psr_uf(db, uf, cultura)
-        except Exception as e:
-            log.warning("agregacao psr uf falhou: %r", e)
-            ag = None
-        if ag:
+        ag_cultura = None
+        if cultura:
+            try:
+                ag_cultura = agregar_psr_uf(db, uf, cultura)
+            except Exception as e:
+                log.warning("agregacao psr uf (cultura) falhou: %r", e)
+
+        if ag_cultura:
             return {
                 "uf": uf, "estado": "disponivel", "escopo": "uf",
-                "apolices": ag.get("apolices"),
-                "valorSegurado": ag.get("pago"),
-                "culturaTopo": cultura or ag.get("cultura_topo"),
-                "ano": None, "taxa_pct": ag.get("taxa_pct"),
-                "pago_reais": ag.get("pago"),
-                "sinistros": ag.get("sinistros"),
-                "por_evento": ag.get("por_evento") or [],
-                "fonte": _fonte("MAPA — Seguro Rural (PSR)", ag.get("periodo", "2016–2024"),
+                "temCulturaProdutor": True,
+                "culturaProdutor": cultura,
+                "apolices": ag_cultura.get("apolices"),
+                "valorSegurado": ag_cultura.get("pago"),
+                "culturaTopo": cultura,
+                "ano": None, "taxa_pct": ag_cultura.get("taxa_pct"),
+                "pago_reais": ag_cultura.get("pago"),
+                "sinistros": ag_cultura.get("sinistros"),
+                "por_evento": ag_cultura.get("por_evento") or [],
+                "fonte": _fonte("MAPA — Seguro Rural (PSR)", ag_cultura.get("periodo", "2016–2024"),
                                  ["Soma das apólices do estado inteiro, não da sua propriedade.",
                                   "Escolha o seu município no mapa para um retrato mais próximo de você."]),
+            }
+
+        # cultura do produtor sem seguro na UF -> retrato geral do estado (real)
+        try:
+            ag_geral = agregar_psr_uf(db, uf, None)
+        except Exception as e:
+            log.warning("agregacao psr uf (geral) falhou: %r", e)
+            ag_geral = None
+        if ag_geral:
+            return {
+                "uf": uf, "estado": "disponivel", "escopo": "uf",
+                "temCulturaProdutor": False,
+                "culturaProdutor": cultura,
+                "apolices": ag_geral.get("apolices"),
+                "valorSegurado": ag_geral.get("pago"),
+                "culturaTopo": ag_geral.get("cultura_topo"),
+                "ano": None, "taxa_pct": ag_geral.get("taxa_pct"),
+                "pago_reais": ag_geral.get("pago"),
+                "sinistros": ag_geral.get("sinistros"),
+                "por_evento": ag_geral.get("por_evento") or [],
+                "fonte": _fonte("MAPA — Seguro Rural (PSR)", ag_geral.get("periodo", "2016–2024"),
+                                 ["Retrato do estado inteiro (todas as culturas), não da sua propriedade.",
+                                  f"Nenhum registro de seguro para {cultura or 'a sua cultura'} nesta UF."]),
             }
 
     alvo = f"{cultura or 'cultura'} em {ibge or uf}"

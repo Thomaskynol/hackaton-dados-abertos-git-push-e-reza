@@ -222,6 +222,11 @@ export interface ProjecaoPreco {
   unidade: string;
   /** "ia" quando a previsão veio do modelo; "tendencia" quando foi regressão. */
   origem?: "ia" | "tendencia";
+  /**
+   * Regressão embutida na projeção da IA, para o card mostrar os dois
+   * números lado a lado: o da IA (leitura) e o da reta (determinístico).
+   */
+  valor_tendencia?: number | null;
   /** Frase curta explicando o porquê (quando a IA gera). */
   racional?: string | null;
 }
@@ -236,9 +241,29 @@ export interface TendenciaPreco {
   menor?: PontoSerie;
   maior?: PontoSerie;
   direcao?: "subindo" | "caindo" | "estável";
+  /**
+   * Variação do ÚLTIMO ano em % (ex.: -19.4), calculada do dado oficial.
+   * É o que manda no selo `direcao`. Bug corrigido: antes o selo vinha da
+   * reta de 8 anos, que é NOMINAL e sobe com a inflação em todas as
+   * culturas — o feijão de SP, que CAIU 19,4%, aparecia como "subindo".
+   */
+  variacao_ultimo_ano?: number | null;
+  /**
+   * Inclinação NOMINAL da reta em %/ano. Contexto histórico apenas:
+   * preço nominal subindo NÃO é preço real subindo.
+   */
+  variacao_media_anual?: number | null;
   projecao?: ProjecaoPreco | null;
+  /**
+   * Passo 5: regressão SEMPRE presente, mesmo com a IA ligada. É o número
+   * determinístico e auditável — a IA pode mudar entre versões do modelo,
+   * esta não. Sem ela, desligar a IA deixaria o card sem número nenhum.
+   */
+  projecao_tendencia?: ProjecaoPreco | null;
   serie?: PontoSerie[];
   fonte?: string;
+  /** Ex.: "valor médio ANUAL por UF" — evita o produtor achar que é cotação diária. */
+  periodicidade?: string;
   aviso?: string;
 }
 
@@ -271,6 +296,9 @@ export interface AlertaReal {
   severidade: "alta" | "media" | "baixa";
   mensagem: string;
   fonte: string;
+  /** Clima traz título próprio (ex: "Risco de geada"). */
+  titulo?: string;
+  local?: string | null;
   data_extracao?: string;
   enviado_em?: string;
   lido?: boolean;
@@ -283,7 +311,42 @@ export interface AlertasResposta {
   data: string;
 }
 
-/** GET /api/alertas?ibge=&cultura=&uf= — avisos reais (janela ZARC + risco PSR). */
+export interface EventoClima {
+  tipo: string;
+  titulo?: string;
+  severidade: "alta" | "media" | "baixa";
+  mensagem: string;
+  janela?: string;
+}
+
+export interface DecisaoDia {
+  resposta: string;
+  origem: "ia" | "regras";
+  severidade: "alta" | "media" | "baixa" | "info";
+  acoes: string[];
+  fontes: string[];
+  local: { nome: string | null; uf: string | null };
+  cultura: string;
+  tem_clima: boolean;
+  eventos_clima: EventoClima[];
+  data: string;
+}
+
+/** GET /api/decisao-dia — a decisão do dia (clima+ZARC+preço+memória) por IA. */
+export async function getDecisaoDia(
+  args: { produtor_id?: string | null; uf?: string | null; ibge?: string | null; cultura?: string | null },
+): Promise<DecisaoDia> {
+  const q = new URLSearchParams();
+  if (args.produtor_id) q.set("produtor_id", args.produtor_id);
+  if (args.uf) q.set("uf", args.uf);
+  if (args.ibge) q.set("ibge", args.ibge);
+  if (args.cultura) q.set("cultura", args.cultura);
+  const res = await fetch(`${apiUrl()}/api/decisao-dia?${q.toString()}`);
+  if (!res.ok) throw new Error(`GET /api/decisao-dia ${res.status}`);
+  return res.json();
+}
+
+/** GET /api/alertas?ibge=&cultura=&uf= — avisos reais (clima + janela ZARC + risco PSR). */
 export async function getAlertas(
   uf: string,
   ibge?: string | null,
