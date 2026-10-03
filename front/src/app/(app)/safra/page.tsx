@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MessageCircle, Bell, ChevronRight, Sprout, CloudSun } from "lucide-react";
-import { AudioButton } from "@/components/AudioButton";
 import { precisaOnboarding, usePerfil, primeiroNome } from "@/lib/perfil-context";
 import { CULTURAS, alertasDemo } from "@/lib/dados-locais";
 
@@ -71,7 +70,6 @@ export default function Safra() {
               <span className="inline-flex items-center gap-2 rounded-full bg-amber-50 border border-amber-200 px-3.5 py-1 text-[0.78rem] font-extrabold uppercase tracking-wide text-amber-800">
                 <CloudSun size={17} /> Decisão do dia
               </span>
-              <AudioButton texto={resumoDia} />
             </div>
             <p className="mt-3.5 text-[1.05rem] leading-relaxed text-ink font-medium">{resumoDia}</p>
             <Link
@@ -131,7 +129,6 @@ export default function Safra() {
                   <p className="mt-1.5 text-[0.9rem] leading-relaxed text-muted">{a.mensagem}</p>
                   <div className="mt-3 flex items-center justify-between pt-2 border-t border-line/60">
                     <span className="text-[0.78rem] text-muted">Fonte: <strong>{a.fonte}</strong></span>
-                    <AudioButton texto={`${a.titulo}. ${a.mensagem}`} />
                   </div>
                 </article>
               ))}

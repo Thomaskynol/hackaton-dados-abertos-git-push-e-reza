@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { EvidenceCard } from "@/components/EvidenceCard";
-import { AudioButton } from "@/components/AudioButton";
 import { precisaOnboarding, usePerfil } from "@/lib/perfil-context";
 import { CULTURAS, evidenciasDemo } from "@/lib/dados-locais";
 
@@ -33,7 +32,6 @@ export default function RadarPage() {
           <h1 className="font-display text-[1.6rem] font-extrabold leading-tight text-ink">
             Radar da safra
           </h1>
-          <AudioButton texto={intro} />
         </div>
         <p className="mt-1 text-muted">
           {cultura ? `${cultura.nome} · ` : ""}

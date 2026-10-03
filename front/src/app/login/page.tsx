@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Phone, ArrowRight } from "lucide-react";
 import { Button } from "@/components/Button";
-import { AudioButton } from "@/components/AudioButton";
 import { usePerfil } from "@/lib/perfil-context";
 import { ApiError, getConta, login } from "@/lib/api";
 
@@ -80,7 +79,6 @@ export default function Login() {
             <h2 className="font-display text-[1.5rem] font-extrabold leading-tight text-ink">
               Bem-vindo ao campo
             </h2>
-            <AudioButton texto={pergunta} />
           </div>
           <p className="mt-1.5 text-[0.98rem] text-muted">{pergunta}</p>
         </div>

@@ -3,49 +3,10 @@
 /**
  * Hooks de áudio — tudo no navegador, sem backend.
  *
- * - useFala: lê um texto em voz alta (SpeechSynthesis) para quem prefere ouvir.
  * - useGravacao: captura o microfone (MediaRecorder) e devolve o blob. A
  *   TRANSCRIÇÃO real virá do backend depois; aqui só gravamos e sinalizamos.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-
-export function useFala() {
-  const [falando, setFalando] = useState(false);
-  // Suporte detectado SÓ após montar (evita mismatch de hidratação SSR/CSR).
-  const [suportado, setSuportado] = useState(false);
-
-  useEffect(() => {
-    setSuportado(typeof window !== "undefined" && "speechSynthesis" in window);
-  }, []);
-
-  const falar = useCallback(
-    (texto: string) => {
-      if (!suportado || !texto) return;
-      window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(texto);
-      u.lang = "pt-BR";
-      u.rate = 1;
-      u.pitch = 1;
-      u.onend = () => setFalando(false);
-      u.onerror = () => setFalando(false);
-      setFalando(true);
-      window.speechSynthesis.speak(u);
-    },
-    [suportado],
-  );
-
-  const parar = useCallback(() => {
-    if (!suportado) return;
-    window.speechSynthesis.cancel();
-    setFalando(false);
-  }, [suportado]);
-
-  useEffect(() => () => {
-    if (suportado) window.speechSynthesis.cancel();
-  }, [suportado]);
-
-  return { falar, parar, falando, suportado };
-}
 
 export type EstadoGravacao = "ocioso" | "gravando" | "processando" | "erro";
 

@@ -44,7 +44,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const formCleanProfile = document.getElementById("form-clean-profile");
 
   // ==========================================================================
-  // 1. Áudio & Fala (Web Audio & SpeechSynthesis)
+  // 1. Áudio (Web Audio)
   // ==========================================================================
   function playCleanBeep(type = "info") {
     try {
@@ -69,19 +69,6 @@ document.addEventListener("DOMContentLoaded", () => {
       osc.stop(audioCtx.currentTime + 0.28);
     } catch (e) {
       // Audio muted
-    }
-  }
-
-  function speakText(text) {
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-      const utter = new SpeechSynthesisUtterance(text);
-      utter.lang = "pt-BR";
-      utter.rate = 1.05;
-      utter.pitch = 0.95;
-      window.speechSynthesis.speak(utter);
-    } else {
-      showCleanToast("Reproduzindo áudio...");
     }
   }
 
@@ -149,25 +136,6 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       let content = `<p>${formatMarkdown(text)}</p>`;
 
-      if (meta && meta.audioText) {
-        content += `
-          <div class="clean-voice-bar">
-            <button class="btn-play-clean" data-audio="${escapeAttr(meta.audioText)}" title="Ouvir áudio da resposta">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            </button>
-            <div class="voice-wave">
-              <span class="wave-line" style="height: 6px;"></span>
-              <span class="wave-line" style="height: 12px;"></span>
-              <span class="wave-line" style="height: 16px;"></span>
-              <span class="wave-line" style="height: 8px;"></span>
-              <span class="wave-line" style="height: 14px;"></span>
-              <span class="wave-line" style="height: 10px;"></span>
-            </div>
-            <span style="font-size: 0.72rem; color: var(--text-secondary);">Áudio do Copiloto</span>
-          </div>
-        `;
-      }
-
       if (meta && (meta.fonte || meta.porQue)) {
         content += `
           <div class="clean-explain-card">
@@ -201,14 +169,6 @@ document.addEventListener("DOMContentLoaded", () => {
     chatMessagesStream.appendChild(row);
     chatMessagesStream.scrollTop = chatMessagesStream.scrollHeight;
 
-    // Conecta áudio
-    bubble.querySelectorAll(".btn-play-clean").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const audioMsg = btn.getAttribute("data-audio");
-        speakText(audioMsg);
-      });
-    });
-
     // Conecta ação sugerida
     bubble.querySelectorAll(".btn-msg-action").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -226,10 +186,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function escapeHTML(str) {
     return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  }
-
-  function escapeAttr(str) {
-    return str.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
 
   function formatMarkdown(str) {
@@ -288,13 +244,12 @@ document.addEventListener("DOMContentLoaded", () => {
             if (meta && (meta.erro || (!resposta && meta.mensagem))) {
               const sugestoes = (meta.sugestoes || []).map(s => `\n• ${s}`).join("");
               const msg = `${meta.mensagem || "Não consegui entender."}${sugestoes ? `\n\nTente perguntar:${sugestoes}` : ""}`;
-              appendMessage("ai", msg, { fonte: "AgroPilot", confianca: 60, audioText: meta.mensagem });
+              appendMessage("ai", msg, { fonte: "AgroPilot", confianca: 60 });
             } else {
               appendMessage("ai", resposta || full, {
                 fonte: (meta && meta.fonte) || "API",
                 porQue: meta && meta.intencao ? `Intenção: ${meta.intencao}` : undefined,
                 confianca: 92,
-                audioText: resposta || full,
               });
             }
             return;
@@ -306,13 +261,12 @@ document.addEventListener("DOMContentLoaded", () => {
             // Fallback sugestões
             const sugestoes = (apiResp.sugestoes || []).map(s => `\n• ${s}`).join("");
             const msg = `${apiResp.mensagem}${sugestoes ? `\n\nTente perguntar:${sugestoes}` : ""}`;
-            appendMessage("ai", msg, { fonte: "AgroPilot", confianca: 60, audioText: apiResp.mensagem });
+            appendMessage("ai", msg, { fonte: "AgroPilot", confianca: 60 });
           } else {
             const meta = {
               fonte: apiResp.fonte || "API",
               porQue: `Intenção: ${apiResp.intencao}`,
               confianca: 92,
-              audioText: apiResp.resposta,
             };
             appendMessage("ai", apiResp.resposta, meta);
           }
@@ -454,7 +408,6 @@ document.addEventListener("DOMContentLoaded", () => {
       `📌 **O que você deve fazer agora:** ${cenario.acaoRecomendada}`;
 
     appendMessage("ai", alertaMsg, {
-      audioText: `Atenção Seu Sebastião! ${cenario.chatPrompt}`,
       fonte: cenario.fonte,
       porQue: cenario.porQue,
       confianca: cenario.confianca
@@ -556,14 +509,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   loadProfileFromSession();
   updateFarmerContextUI();
-
-  // Conectar botões de áudio iniciais
-  document.querySelectorAll(".btn-play-clean").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const audioMsg = btn.getAttribute("data-audio");
-      speakText(audioMsg);
-    });
-  });
 
   console.log("🌾 AgroPilot Clean Chatbot ativo.");
 });

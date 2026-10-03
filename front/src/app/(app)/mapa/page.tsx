@@ -4,7 +4,6 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { MapPin, LocateFixed, MessageCircle, TrendingUp } from "lucide-react";
-import { AudioButton } from "@/components/AudioButton";
 import { MapaBrasil } from "@/components/MapaBrasil";
 import { PainelRegional } from "@/components/PainelRegional";
 import { precisaOnboarding, usePerfil } from "@/lib/perfil-context";
@@ -30,7 +29,6 @@ function ConsultorComercial({ uf, culturaId, precos }: { uf: UFSigla; culturaId:
         <span className="inline-flex items-center gap-1.5 rounded-full bg-terra-soft px-3 py-1 text-[0.78rem] font-bold uppercase tracking-wide text-terra-ink">
           <TrendingUp size={15} aria-hidden /> Consultor comercial inteligente
         </span>
-        <AudioButton texto={texto} />
       </div>
       <p className="mt-2.5 text-[1.05rem] font-medium leading-relaxed text-ink">{texto}</p>
       <div className="mt-2.5 flex flex-wrap items-center gap-2 pt-2 border-t border-line/60 text-[0.8rem] text-muted">
@@ -177,9 +175,6 @@ function ConteudoMapa() {
               Mapa de Oportunidades Agrícolas
             </h1>
             <p className="mt-2 max-w-3xl text-[0.96rem] leading-relaxed text-muted">{intro}</p>
-          </div>
-          <div className="shrink-0 pt-1">
-            <AudioButton texto={intro} />
           </div>
         </div>
       </section>

@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MapPin, TrendingUp, ExternalLink, ArrowRight } from "lucide-react";
-import { AudioButton } from "@/components/AudioButton";
 import { precisaOnboarding, usePerfil } from "@/lib/perfil-context";
 import { UFS, canaisDaUF, ufDoPerfil } from "@/lib/mapa-local";
 import { formatarPreco, precosDaUF, rotuloCultura } from "@/lib/precos";
@@ -44,9 +43,6 @@ export default function PrecosPage() {
               Preços de Referência por Região
             </h1>
             <p className="mt-2 max-w-2xl text-[0.95rem] leading-relaxed text-muted">{intro}</p>
-          </div>
-          <div className="shrink-0 pt-1">
-            <AudioButton texto={intro} />
           </div>
         </div>
       </section>

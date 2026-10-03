@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, MapPin, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/Button";
-import { AudioButton } from "@/components/AudioButton";
 import { MapaBrasil } from "@/components/MapaBrasil";
 import { usePerfil } from "@/lib/perfil-context";
 import { CULTURAS } from "@/lib/dados-locais";
@@ -180,7 +179,6 @@ export default function ContaPage() {
           <h1 className="font-display text-[1.6rem] font-extrabold leading-tight text-ink">
             Minha conta
           </h1>
-          <AudioButton texto={intro} />
         </div>
         <p className="mt-1 text-muted">{intro}</p>
       </section>
