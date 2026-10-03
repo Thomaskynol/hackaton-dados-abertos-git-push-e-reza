@@ -135,6 +135,7 @@ _COLS = (
     "agrofit",
     "precos_conab",
     "precos_meta",
+    "precos_previsao",
 )
 
 
@@ -157,7 +158,21 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def _sem_rede_ibge(monkeypatch):
-    """Testes unitários não tocam a rede: a atualização viva do IBGE fica OFF por
-    padrão. Os testes de 'série viva' religam explicitamente com monkeypatch.setenv.
+    """Testes unitários não tocam a rede: atualização viva do IBGE e clima ficam
+    OFF por padrão. Testes que precisam religam/mockam explicitamente.
+
+    A previsão de preço por IA também é desligada: sem isso, todo teste que
+    chama resumo_tendencia fazia uma chamada de LLM de verdade (60s de timeout
+    cada) e ainda_protava o resultado em cache, deixando a suíte lenta e não
+    determinística. O cache é limpo entre testes.
     """
     monkeypatch.setenv("IBGE_AUTO_UPDATE", "0")
+    monkeypatch.setenv("CLIMA_AUTO", "0")
+    monkeypatch.setenv("PRECO_PREVISAO_IA", "0")
+    # Remove a chave de IA nos testes: nenhuma chamada real ao OpenRouter (quem
+    # testa IA mocka a função). Evita a suíte lenta/instável com back/.env presente.
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    import app.llm as _llm
+    _llm.limpar_cache_previsao()
+    yield
+    _llm.limpar_cache_previsao()

@@ -50,6 +50,28 @@ def test_stream_mockado_meta_delta_done(monkeypatch):
 
 
 def test_stream_intent_nao_suportada(monkeypatch):
+    """Fora do escopo real (código) continua classificado como NAO_ENTENDI.
+
+    Item 1.1: texto solto como "xyz123" NÃO pode mais cair em NAO_ENTENDI —
+    ver test_contrato.py::test_chat_texto_qualquer_nao_morre.
+    """
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    import app.routes.chat as chat
+    monkeypatch.setattr(chat, "responder_com_tools_stream", lambda *a, **k: iter([]))
+    monkeypatch.setattr(chat, "gerar_resposta_stream", lambda *a, **k: iter([]))
+    res = TestClient(app).post(
+        "/api/chat/stream",
+        json={"produtor_id": "t1", "mensagem": "escreve um codigo python pra mim"},
+    )
+    assert res.status_code == 200
+    evs = _eventos(res.text)
+    assert evs[0][0] == "meta"
+    assert evs[0][1]["intencao"] == "NAO_ENTENDI"
+    assert evs[-1][0] == "done"
+
+
+def test_stream_texto_solto_nao_morre(monkeypatch):
+    """Regressão do item 1.1: entrada sem palavra-chave continua respondendo."""
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     import app.routes.chat as chat
     monkeypatch.setattr(chat, "responder_com_tools_stream", lambda *a, **k: iter([]))
@@ -59,6 +81,5 @@ def test_stream_intent_nao_suportada(monkeypatch):
     )
     assert res.status_code == 200
     evs = _eventos(res.text)
-    assert evs[0][0] == "meta"
-    assert evs[0][1]["intencao"] == "NAO_ENTENDI"
+    assert evs[0][1]["intencao"] != "NAO_ENTENDI"
     assert evs[-1][0] == "done"

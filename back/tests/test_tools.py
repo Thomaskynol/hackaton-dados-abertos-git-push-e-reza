@@ -15,17 +15,32 @@ class _FakeCol:
         return self._one
 
     def find(self, query=None, *a, **k):
+        # Compartilha a MESMA lista: o pymongo real ordena o cursor em si.
+        # Com list(docs), um sort no cursor se perderia em nova cópia.
         return _FakeCur(self._docs)
 
 
 class _FakeCur:
     def __init__(self, docs):
-        self._docs = list(docs)
+        self._docs = docs  # sem list(): preserva a lista da coleção
 
-    def sort(self, *a, **k):
+    def sort(self, spec=None, *a, **k):
+        # Honra o sort de verdade: sem isso o teste de ordenação do SIGEF
+        # passaria mesmo com a tool quebrada (sort era no-op aqui).
+        if spec:
+            pares = spec if isinstance(spec, (list, tuple)) else [spec]
+            try:
+                campos = [(p[0], p[1]) for p in pares
+                          if isinstance(p, (list, tuple)) and len(p) >= 2]
+                for campo, direcao in reversed(campos):
+                    self._docs.sort(key=lambda d: d.get(campo) or 0,
+                                    reverse=(direcao < 0))
+            except Exception:
+                pass
         return self
 
     def limit(self, n):
+        # Cópia só aqui (limit realmente "consome" o cursor no pymongo).
         self._docs = self._docs[:n]
         return self
 
@@ -51,11 +66,18 @@ class _DB:
         self.psr_agregado = _FakeCol(docs=[{
             "ano": 2025, "total_apolices": 10, "total_sinistros": 1,
             "taxa_sinistro_pct": 10.0, "total_pago_reais": 100.0, "por_evento": []}])
-        self.sigef_agregado = _FakeCol(docs=[{
-            "cultura_canonica": "feijao", "cod_ibge": "3503208",
-            "municipio_norm": "araraquara", "uf": "SP",
-            "area_total_ha": 5.0, "producao_bruta_t": 1.0,
-            "producao_estimada_t": 2.0}])
+        self.sigef_agregado = _FakeCol(docs=[
+            # Inseridos em ordem DECRESCENTE de propósito: se a tool não
+            # ordenar por área, "milho" (menor) sairia primeiro e o teste
+            # pegaria o bug de volta.
+            {"cultura_canonica": "milho", "cod_ibge": "3503208",
+             "municipio_norm": "araraquara", "uf": "SP",
+             "area_total_ha": 5.0, "producao_bruta_t": 1.0,
+             "producao_estimada_t": 2.0},
+            {"cultura_canonica": "feijao", "cod_ibge": "3503208",
+             "municipio_norm": "araraquara", "uf": "SP",
+             "area_total_ha": 900.0, "producao_bruta_t": 1.0,
+             "producao_estimada_t": 2.0}])
         self.ana_atlas = _FakeCol(one={
             "cod_ibge": "3503208", "municipio": "Araraquara", "uf": "SP",
             "grupo_predominante": "G", "sistema_predominante": "S",
@@ -77,11 +99,11 @@ class _Resp:
         return self._payload
 
 
-def test_schema_tem_7_tools():
+def test_schema_tem_8_tools():
     names = sorted(t["function"]["name"] for t in TOOLS_SCHEMA)
-    assert names == ["buscar_area_sigef", "buscar_irrigacao_ana", "buscar_janelas_zarc",
-                     "buscar_municipio", "buscar_preco_conab", "buscar_produtos_agrofit",
-                     "buscar_risco_psr"]
+    assert names == ["buscar_area_sigef", "buscar_clima", "buscar_irrigacao_ana",
+                     "buscar_janelas_zarc", "buscar_municipio", "buscar_preco_conab",
+                     "buscar_produtos_agrofit", "buscar_risco_psr"]
 
 
 def test_dispatch_db_fake():
@@ -98,8 +120,11 @@ def test_dispatch_db_fake():
     r0 = r["riscos"][0]  # type: ignore[index]
     assert r0["ano"] == 2025  # type: ignore[index]
     a = dispatch(db, "buscar_area_sigef", {"cod_ibge": "3503208"})
-    a0 = a["areas"][0]  # type: ignore[index]
-    assert a0["cultura"] == "feijao"  # type: ignore[index]
+    # Regressão: sem sort por área, o Mongo devolvia em ordem de inserção e a
+    # cultura "principal" virava qualquer uma (feijão 215 ha em vez de soja).
+    areas = a["areas"]
+    assert areas[0]["cultura"] == "feijao"  # maior area do fake (900 ha)
+    assert areas == sorted(areas, key=lambda x: -x["area_total_ha"])
     n = dispatch(db, "buscar_irrigacao_ana", {"cod_ibge": "3503208"})
     assert n["grupo"] == "G"
     assert dispatch(db, "invalida", {})["erro"]
