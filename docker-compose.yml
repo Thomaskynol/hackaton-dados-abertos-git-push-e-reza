@@ -26,6 +26,18 @@ services:
       - CORS_ORIGINS=*
       # E.g.: OPENROUTER_API_KEY=sk-or-v1-... (never commit the real key)
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      # IA (opcionais): modelo(s) free-first e timeout da IA nos endpoints de dados
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-}
+      - IA_TIMEOUT_DADOS=${IA_TIMEOUT_DADOS:-12}
+      # série de preços viva (IBGE)
+      - IBGE_AUTO_UPDATE=${IBGE_AUTO_UPDATE:-1}
+      - IBGE_TTL_DIAS=${IBGE_TTL_DIAS:-7}
+      # previsão de preço
+      - PRECO_PREVISAO_IA=${PRECO_PREVISAO_IA:-1}
+      - PRECO_PREVISAO_TTL_DIAS=${PRECO_PREVISAO_TTL_DIAS:-30}
+      - PRECO_ANO_ALVO_OFFSET=${PRECO_ANO_ALVO_OFFSET:-2}
+      # clima real (Open-Meteo)
+      - CLIMA_AUTO=${CLIMA_AUTO:-1}
     # ponytail: install deps at start; without this uvicorn exits and only mongo stays up
     command: sh -c "pip install --no-cache-dir -r requirements.txt && uvicorn app.main:app --host 0.0.0.0 --port 8000"
     depends_on:
