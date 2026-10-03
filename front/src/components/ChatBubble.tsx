@@ -1,10 +1,9 @@
 "use client";
 
-import { AudioButton } from "./AudioButton";
 import { EvidenceCard } from "./EvidenceCard";
 import type { Mensagem } from "@/lib/types";
 
-/** Bolha de conversa. Resposta do copiloto traz "ouvir", fonte e evidências. */
+/** Bolha de conversa. Resposta do copiloto traz fonte e evidências. */
 export function ChatBubble({ msg }: { msg: Mensagem }) {
   const doUsuario = msg.autor === "usuario";
 
@@ -25,7 +24,6 @@ export function ChatBubble({ msg }: { msg: Mensagem }) {
         <p className="whitespace-pre-wrap text-[1rem] text-ink">{msg.texto}</p>
 
         <div className="mt-2.5 flex flex-wrap items-center gap-2">
-          <AudioButton texto={msg.texto} rotulo="Ouvir resposta" />
           {msg.fonte && (
             <span className="rounded-full bg-canvas px-2.5 py-1 text-[0.78rem] font-semibold text-muted">
               Fonte: {msg.fonte}

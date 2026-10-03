@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, ArrowLeft, MapPin } from "lucide-react";
 import { Button } from "@/components/Button";
-import { AudioButton } from "@/components/AudioButton";
 import { MapaBrasil } from "@/components/MapaBrasil";
 import { usePerfil, primeiroNome } from "@/lib/perfil-context";
 import { CULTURAS } from "@/lib/dados-locais";
@@ -17,7 +16,7 @@ const ORDEM: Passo[] = ["nome", "local", "cultura", "fim"];
 
 /**
  * Onboarding conversacional: UMA pergunta por tela. Barra de progresso,
- * botão voltar, "ouvir" em cada pergunta, escolhas visuais quando dá.
+ * botão voltar, escolhas visuais quando dá.
  * Local = MapaBrasil (compacto) + UF: define {municipio, uf, cod_ibge}.
  * Solo NUNCA perguntado — inferido no servidor via ZARC.
  */
@@ -150,7 +149,6 @@ export default function Onboarding() {
             <h1 className="font-display text-[1.7rem] font-extrabold leading-tight text-ink">
               {perguntas[passo]}
             </h1>
-            <AudioButton texto={`${perguntas[passo]} ${subtitulos[passo]}`} />
           </div>
           <p className="mt-2 text-[1.05rem] text-muted">{subtitulos[passo]}</p>
         </div>

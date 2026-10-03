@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { ExternalLink } from "lucide-react";
-import { AudioButton } from "./AudioButton";
 import { EvidenceCard } from "./EvidenceCard";
 import type {
   EstadoEvidencia,
@@ -10,7 +9,8 @@ import type {
   PrecoRef,
   ResumoRegional,
 } from "@/lib/types";
-import { formatarPreco, rotuloCultura } from "@/lib/precos";
+import { formatarPreco } from "@/lib/precos";
+import { irrigacaoEmTexto, producaoEmTexto, seguroEmTexto } from "@/lib/texto-cards";
 
 function mapearEstado(e: EstadoRegional): EstadoEvidencia {
   if (e === "disponivel") return "favoravel";
@@ -18,45 +18,13 @@ function mapearEstado(e: EstadoRegional): EstadoEvidencia {
   return "pendente";
 }
 
-function detalheProducao(p: ResumoRegional["producao"]): string {
-  if (p.estado === "disponivel" && (p.culturaTopo || p.areaHa != null || p.producaoT != null)) {
-    const partes = [
-      p.culturaTopo ?? "cultura principal",
-      p.areaHa != null ? `${p.areaHa.toLocaleString("pt-BR")} ha` : null,
-      p.producaoT != null ? `${p.producaoT.toLocaleString("pt-BR")} t` : null,
-      p.safraRef ? `safra ${p.safraRef}` : null,
-    ].filter(Boolean);
-    return partes.join(" · ");
-  }
-  return "Sem dado ainda. Quando o SIGEF ligar, aparece cultura, area e producao da UF.";
-}
-
-function detalheSeguro(s: ResumoRegional["seguro"]): string {
-  if (s.estado === "disponivel" && (s.apolices != null || s.culturaTopo)) {
-    const partes = [
-      s.culturaTopo ? `topo: ${s.culturaTopo}` : null,
-      s.apolices != null ? `${s.apolices.toLocaleString("pt-BR")} apólices` : null,
-      s.valorSegurado != null ? `R$ ${s.valorSegurado.toLocaleString("pt-BR")}` : null,
-    ].filter(Boolean);
-    return partes.join(" · ") || "Dados do seguro disponíveis — ver fonte.";
-  }
-  return "Sem dado ainda. Vira do PSR/SISSER (2016-2024): apolices por cultura.";
-}
-
-function detalheIrrigacao(i: ResumoRegional["irrigacao"]): string {
-  if (i.estado === "disponivel" && i.areaIrrigadaHa != null) {
-    return `${i.areaIrrigadaHa.toLocaleString("pt-BR")} ha irrigados.`;
-  }
-  return "Sem dado ainda. Vira do Atlas Irrigacao (ANA).";
-}
-
 function BlocoPreco({ preco }: { preco: PrecoRef }) {
   const [aberto, setAberto] = useState(false);
   const semValor = preco.valor == null;
   const rotulo =
-    preco.tipo === "pgpm" ? "Preco minimo (PGPM)"
+    preco.tipo === "pgpm" ? "Preço mínimo (PGPM)"
     : preco.tipo === "conab_mercado" ? `Mercado (CONAB)${preco.uf ? ` - ${preco.uf}` : ""}`
-    : "Indicador diario (Cepea/ESALQ)";
+    : "Indicador diário (Cepea/ESALQ)";
   return (
     <div className="rounded-xl border border-line bg-canvas p-3">
       <div className="flex items-start justify-between gap-2">
@@ -87,7 +55,7 @@ function BlocoPreco({ preco }: { preco: PrecoRef }) {
         <p className="mt-1 text-[0.82rem] text-muted">Limites: {preco.fonte.limitacoes.join(" ")}</p>
       ) : null}
       {semValor && preco.tipo !== "cepea" ? (
-        <p className="mt-1 text-[0.82rem] font-semibold text-muted">sem cotacao disponivel</p>
+        <p className="mt-1 text-[0.82rem] font-semibold text-muted">sem cotação disponível</p>
       ) : null}
     </div>
   );
@@ -95,7 +63,12 @@ function BlocoPreco({ preco }: { preco: PrecoRef }) {
 
 export function PainelRegional({ resumo }: { resumo: ResumoRegional }) {
   const { uf, producao, solo, seguro, irrigacao, precos, canais, oportunidade } = resumo;
-  const voz = `${uf.nome}. Producao, seguro, irrigacao, preco e canais ainda pendentes. Nada aqui e recomendacao de venda.`;
+
+  // Os três blocos abaixo saem humanizados (frase + fichas) em vez de "campo · campo".
+  const prod = producaoEmTexto(producao, uf.nome);
+  const seg = seguroEmTexto(seguro, uf.nome);
+  const irr = irrigacaoEmTexto(irrigacao, uf.nome);
+
   return (
     <section aria-label={`Painel regional de ${uf.nome}`} className="space-y-3.5 animate-fade-up">
       <div className="flex items-start justify-between gap-3 rounded-xl2 border border-line bg-surface p-4 sm:p-5 shadow-card card-hover">
@@ -106,12 +79,42 @@ export function PainelRegional({ resumo }: { resumo: ResumoRegional }) {
           <h2 className="mt-1 font-display text-[1.45rem] font-extrabold text-ink">{uf.nome}</h2>
           <p className="mt-0.5 text-[0.92rem] text-muted">Cenário regional consolidado. Informações para apoiar suas decisões.</p>
         </div>
-        <AudioButton texto={voz} />
       </div>
-      <EvidenceCard evidencia={{ tipo: "sigef", estado: mapearEstado(producao.estado), titulo: "O que a região mais produz", detalhe: detalheProducao(producao), fonte: producao.fonte }} />
+
+      <EvidenceCard
+        evidencia={{
+          tipo: "sigef",
+          estado: mapearEstado(producao.estado),
+          titulo: "O que a região mais produz",
+          detalhe: prod.detalhe,
+          destaques: prod.destaques,
+          leitura: prod.leitura,
+          fonte: producao.fonte,
+        }}
+      />
       <EvidenceCard evidencia={{ tipo: "zarc", estado: mapearEstado(solo.estado), titulo: "Tipo de solo predominante", detalhe: solo.descricao, fonte: solo.fonte }} />
-      <EvidenceCard evidencia={{ tipo: "psr", estado: mapearEstado(seguro.estado), titulo: "Força da cultura no seguro agrícola", detalhe: detalheSeguro(seguro), fonte: seguro.fonte }} />
-      <EvidenceCard evidencia={{ tipo: "ana", estado: mapearEstado(irrigacao.estado), titulo: "Irrigação disponível", detalhe: detalheIrrigacao(irrigacao), fonte: irrigacao.fonte }} />
+      <EvidenceCard
+        evidencia={{
+          tipo: "psr",
+          estado: mapearEstado(seguro.estado),
+          titulo: "Força da cultura no seguro agrícola",
+          detalhe: seg.detalhe,
+          destaques: seg.destaques,
+          leitura: seg.leitura,
+          fonte: seguro.fonte,
+        }}
+      />
+      <EvidenceCard
+        evidencia={{
+          tipo: "ana",
+          estado: mapearEstado(irrigacao.estado),
+          titulo: "Irrigação disponível",
+          detalhe: irr.detalhe,
+          destaques: irr.destaques,
+          leitura: irr.leitura,
+          fonte: irrigacao.fonte,
+        }}
+      />
       <article className="relative overflow-hidden rounded-xl2 border border-line bg-surface p-4 sm:p-5 shadow-soft card-hover">
         <span className="absolute left-0 top-0 h-full w-1.5 bg-gradient-to-b from-amber-500 to-terra" aria-hidden />
         <h3 className="font-display text-[1.15rem] font-extrabold text-ink">Para vender melhor</h3>
@@ -140,10 +143,6 @@ export function PainelRegional({ resumo }: { resumo: ResumoRegional }) {
         ))}
       </div>
       <EvidenceCard evidencia={{ tipo: "zarc", estado: mapearEstado(oportunidade.estado), titulo: "Oportunidade regional (ZARC x SIGEF)", detalhe: oportunidade.detalhe, fonte: oportunidade.fonte }} />
-      <div className="flex items-center gap-2 pt-1">
-        <AudioButton texto={oportunidade.detalhe} />
-        <span className="text-[0.82rem] font-medium text-muted">Ouvir análise de oportunidade</span>
-      </div>
     </section>
   );
 }

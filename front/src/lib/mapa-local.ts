@@ -21,29 +21,29 @@ export const UFS: UFInfo[] = [
   { sigla: "AC", nome: "Acre", regiao: "Norte" },
   { sigla: "AL", nome: "Alagoas", regiao: "Nordeste" },
   { sigla: "AM", nome: "Amazonas", regiao: "Norte" },
-  { sigla: "AP", nome: "Amapa", regiao: "Norte" },
+  { sigla: "AP", nome: "Amapá", regiao: "Norte" },
   { sigla: "BA", nome: "Bahia", regiao: "Nordeste" },
-  { sigla: "CE", nome: "Ceara", regiao: "Nordeste" },
+  { sigla: "CE", nome: "Ceará", regiao: "Nordeste" },
   { sigla: "DF", nome: "Distrito Federal", regiao: "Centro-Oeste" },
-  { sigla: "ES", nome: "Espirito Santo", regiao: "Sudeste" },
-  { sigla: "GO", nome: "Goias", regiao: "Centro-Oeste" },
-  { sigla: "MA", nome: "Maranhao", regiao: "Nordeste" },
+  { sigla: "ES", nome: "Espírito Santo", regiao: "Sudeste" },
+  { sigla: "GO", nome: "Goiás", regiao: "Centro-Oeste" },
+  { sigla: "MA", nome: "Maranhão", regiao: "Nordeste" },
   { sigla: "MG", nome: "Minas Gerais", regiao: "Sudeste" },
   { sigla: "MS", nome: "Mato Grosso do Sul", regiao: "Centro-Oeste" },
   { sigla: "MT", nome: "Mato Grosso", regiao: "Centro-Oeste" },
-  { sigla: "PA", nome: "Para", regiao: "Norte" },
-  { sigla: "PB", nome: "Paraiba", regiao: "Nordeste" },
+  { sigla: "PA", nome: "Pará", regiao: "Norte" },
+  { sigla: "PB", nome: "Paraíba", regiao: "Nordeste" },
   { sigla: "PE", nome: "Pernambuco", regiao: "Nordeste" },
-  { sigla: "PI", nome: "Piaui", regiao: "Nordeste" },
-  { sigla: "PR", nome: "Parana", regiao: "Sul" },
+  { sigla: "PI", nome: "Piauí", regiao: "Nordeste" },
+  { sigla: "PR", nome: "Paraná", regiao: "Sul" },
   { sigla: "RJ", nome: "Rio de Janeiro", regiao: "Sudeste" },
   { sigla: "RN", nome: "Rio Grande do Norte", regiao: "Nordeste" },
-  { sigla: "RO", nome: "Rondonia", regiao: "Norte" },
+  { sigla: "RO", nome: "Rondônia", regiao: "Norte" },
   { sigla: "RR", nome: "Roraima", regiao: "Norte" },
   { sigla: "RS", nome: "Rio Grande do Sul", regiao: "Sul" },
   { sigla: "SC", nome: "Santa Catarina", regiao: "Sul" },
   { sigla: "SE", nome: "Sergipe", regiao: "Nordeste" },
-  { sigla: "SP", nome: "Sao Paulo", regiao: "Sudeste" },
+  { sigla: "SP", nome: "São Paulo", regiao: "Sudeste" },
   { sigla: "TO", nome: "Tocantins", regiao: "Norte" },
 ];
 
@@ -70,11 +70,11 @@ export function soloDaUF(uf: UFSigla): SoloRegional {
     estado: "pendente",
     soloId: null,
     descricao:
-      "Sem dado ainda. Quando ligar, mostramos o solo tipico da regiao em linguagem simples: arenoso (agua escorre rapido), medio ou argiloso (segura agua).",
+      "Ainda não temos o solo desta região. Quando a base ligar, mostramos o solo predominante em linguagem simples: arenoso (a água escorre rápido), médio (equilíbrio) ou argiloso (segura a água).",
     fonte: {
-      nome: "ZARC / dicionario de solos (MAPA)",
-      periodo: "aguardando ingestao",
-      limitacoes: ["Solo varia dentro do estado; o bloco mostra o predominante."],
+      nome: "ZARC / dicionário de solos (MAPA)",
+      periodo: "aguardando ingestão",
+      limitacoes: ["O solo varia dentro do estado; o bloco mostra o predominante."],
     },
   };
 }
@@ -89,8 +89,8 @@ export function producaoDaUF(uf: UFSigla): ProducaoUF {
     safraRef: null,
     fonte: {
       nome: "SIGEF Sementes / MAPA — agregado por UF",
-      periodo: "aguardando ingestao",
-      limitacoes: ["Camada ainda nao ligada ao backend.", "Nenhum valor exibido ate a ingestao real."],
+      periodo: "aguardando ingestão",
+      limitacoes: ["Camada ainda não ligada ao backend.", "Nenhum valor exibido antes da ingestão real."],
     },
   };
 }
@@ -105,7 +105,7 @@ export function seguroDaUF(uf: UFSigla): SeguroUF {
     fonte: {
       nome: "MAPA — PSR/SISSER",
       periodo: "2016–2024 (quando ligado)",
-      limitacoes: ["Dados de apolice, nao de producao individual.", "Camada ainda nao ligada ao backend."],
+      limitacoes: ["Dados de apólice, não de produção individual.", "Camada ainda não ligada ao backend."],
     },
   };
 }
@@ -116,9 +116,9 @@ export function irrigacaoDaUF(uf: UFSigla): IrrigacaoUF {
     estado: "pendente",
     areaIrrigadaHa: null,
     fonte: {
-      nome: "ANA — Atlas Irrigacao",
-      periodo: "aguardando ingestao",
-      limitacoes: ["Camada ainda nao ligada ao backend."],
+      nome: "ANA — Atlas Irrigação",
+      periodo: "aguardando ingestão",
+      limitacoes: ["Camada ainda não ligada ao backend."],
     },
   };
 }
@@ -129,17 +129,17 @@ export function canaisDaUF(uf: UFSigla): CanalPublico {
     estado: "pendente",
     programas: ["PAA — Aquisicao de Alimentos", "PNAE — Alimentacao Escolar"],
     canais: [
-      { id: "cooperativas", categoria: "Cooperativas", descricao: "Entrega conjunta e venda em escala; regras variam por cooperativa." },
-      { id: "cerealistas", categoria: "Cerealistas e armazens", descricao: "Compra local da regiao; condicoes variam por praca e epoca." },
-      { id: "paa", categoria: "PAA — compras publicas", descricao: "Governo compra da agricultura familiar por chamada publica." },
-      { id: "pnae", categoria: "PNAE — merenda escolar", descricao: "Escolas compram do produtor familiar com premio sobre o preco." },
-      { id: "feiras", categoria: "Feiras e venda direta", descricao: "Venda direta ao consumidor na regiao." },
+      { id: "cooperativas", categoria: "Cooperativas", descricao: "Entrega conjunta e venda em escala; as regras variam de cooperativa para cooperativa." },
+      { id: "cerealistas", categoria: "Cerealistas e armazéns", descricao: "Compra na região; as condições mudam por praça e época do ano." },
+      { id: "paa", categoria: "PAA — compras públicas", descricao: "O governo compra da agricultura familiar por chamada pública." },
+      { id: "pnae", categoria: "PNAE — merenda escolar", descricao: "Escolas compram do produtor familiar, com prêmio sobre o preço de mercado." },
+      { id: "feiras", categoria: "Feiras e venda direta", descricao: "Venda direta ao consumidor, sem intermediário." },
     ],
-    detalhe: "Os canais publicos (PAA/PNAE) compram da agricultura familiar por chamada publica. A lista de chamadas da sua regiao entra aqui quando a ingestao ligar. Procure a secretaria de agricultura do municipio.",
+    detalhe: "Os canais públicos (PAA/PNAE) compram da agricultura familiar por chamada pública. A lista de chamadas da sua região entra aqui quando a ingestão ligar. Enquanto isso, procure a secretaria de agricultura do município.",
     fonte: {
-      nome: "PAA / PNAE — camada declarada (sem ingestao)",
+      nome: "PAA / PNAE — camada declarada (sem ingestão)",
       periodo: "em breve",
-      limitacoes: ["Sem lista de compradores: nenhum nome exibido sem fonte oficial.", "Regras variam por municipio e edital."],
+      limitacoes: ["Sem lista de compradores: nenhum nome exibido sem fonte oficial.", "Regras variam por município e edital."],
     },
   };
 }
@@ -149,10 +149,10 @@ export function oportunidadeDaUF(uf: UFSigla): OportunidadeRegional {
     uf,
     estado: "pendente",
     culturasAptasPoucoExploradas: [],
-    detalhe: "Quando o cruzamento ZARC x SIGEF ligar, mostramos aqui culturas aptas para o estado que a regiao ainda explora pouco. E um cenario para estudar — nao uma ordem de plantio.",
+    detalhe: "Quando o cruzamento ZARC x SIGEF ligar, mostramos aqui as culturas aptas para o seu estado que a região ainda explora pouco. É um cenário para estudar — não uma ordem de plantio.",
     fonte: {
       nome: "ZARC/MAPA x SIGEF — cruzamento pendente",
-      periodo: "aguardando ingestao",
+      periodo: "aguardando ingestão",
       limitacoes: ["Requer as duas camadas ligadas para calcular."],
     },
   };

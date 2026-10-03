@@ -56,11 +56,27 @@ export interface Fonte {
   limitacoes?: string[];
 }
 
+/**
+ * Ficha numérica de um card: o número vem compacto ("215 ha") e o
+ * `dica` explica em palavras do produtor ("hectares da lavoura").
+ * A frase completa fica em `Evidencia.detalhe` — aqui é só o resumo visual.
+ */
+export interface DestaqueCard {
+  rotulo: string;
+  valor: string;
+  dica?: string;
+}
+
 export interface Evidencia {
   tipo: "zarc" | "clima" | "psr" | "sigef" | "ana" | "agrofit";
   estado: EstadoEvidencia;
   titulo: string;
+  /** Frase humanizada (já pronta, em português corrido) — nunca "campo · campo". */
   detalhe: string;
+  /** Fichas de número opcionais, renderizadas em grade sob a frase. */
+  destaques?: DestaqueCard[];
+  /** "O que isso significa na prática" — uma linha, opcional. */
+  leitura?: string;
   fonte: Fonte;
 }
 

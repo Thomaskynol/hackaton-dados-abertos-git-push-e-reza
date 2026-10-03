@@ -145,8 +145,8 @@ credibilidade na banca.
   Inclui `.modo-campo` (alto contraste para sol forte).
 - **Acessibilidade:** alvos ≥ 44px, foco visível, `aria-*`, `prefers-reduced-motion`,
   pt-BR, linguagem simples. Ícones `lucide-react`.
-- **Áudio:** `useFala` (TTS "ouvir") e `useGravacao` (mic/MediaRecorder) em
-  `src/lib/audio.ts`. Transcrição real fica para o backend.
+- **Áudio:** `useGravacao` (mic/MediaRecorder) em `src/lib/audio.ts`. Não há
+  leitura em voz alta (TTS) na UI. Transcrição real fica para o backend.
 - **Integração com backend:** na Fase 1 o front roda com dados locais honestos em
   `src/lib/*` e perfil em `localStorage` (`usePerfil`). Na Fase 2 (§10.2) passa a
   consumir `/api/regiao/{uf}` com fallback ao local. Tipos em `src/lib/types.ts`
@@ -164,7 +164,7 @@ front/src/
 │       ├── safra/        # estado da propriedade + decisão do dia
 │       ├── radar/        # evidências (4 estados + Ver fonte)
 │       └── perguntar/    # Assistente (chat voz/texto/chips) — apoio
-├── components/           # Button, Chip, AudioButton, EvidenceCard,
+├── components/           # Button, Chip, EvidenceCard,
 │                         # ChatBubble, ChatInput, TopBar, BottomNav
 └── lib/                  # types, dados-locais, perfil-context, audio,
                           # mapa-local (a criar), precos (a criar)
@@ -214,7 +214,7 @@ pós-login.
 ### 5.3 Card de insights — 4 blocos visíveis + "Ver mais" colapsado
 No celular, 10 blocos viram 3 scrolls e a banca desiste no 4º. Então o card
 mostra **4 blocos acima da dobra**, e o resto fica num acordeão
-**"Ver mais sobre esta região"**. Cada bloco com **fonte + data** e `AudioButton`.
+**"Ver mais sobre esta região"**. Cada bloco com **fonte + data**.
 
 **Visíveis (acima da dobra):**
 1. **Leitura do AgroPilot** (topo, sempre visível) — a síntese que conecta preço
