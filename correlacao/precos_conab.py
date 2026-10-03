@@ -63,11 +63,41 @@ CULTURA_C81 = {
 SACA_KG = {"arroz": 50.0, "feijao": 60.0, "milho": 60.0, "soja": 60.0, "trigo": 60.0}
 
 # --- Preços mínimos OFICIAIS da PGPM (CONAB/MAPA), piso por cultura/safra ---
+#
+# FONTE: Portaria nº 812 (09/07/2025) — CONAB/Globo Rural.
+# CORRIGIDO em 2026-10: a versão anterior tinha 2 erros que mostravam valor
+# errado ao produtor:
+#   1. feijao usava 181.23 (que é o PRETO) rotulado como "cores/carioca" —
+#      o feijão em CORES vale 152.91. Agora são duas entradas distintas.
+#   2. milho tinha 19.21, que não existe na tabela oficial (o menor é 38.28).
+#      O preço do milho é REGIONAL por natureza — 5 faixas, não valor nacional.
+#
+# `regioes: None` = escopo NACIONAL (vale para todo o Brasil).
+# `regioes: [...]`  = escopo REGIONAL (a UF cai na sua faixa).
 PGPM = {
-    "feijao": [{"regioes": None, "valor": 181.23, "unidade": "R$/60kg", "safra": "2025/26",
-                "obs": "Feijão (cores/carioca). Piso nacional de referência."}],
-    "milho": [{"regioes": None, "valor": 19.21, "unidade": "R$/60kg", "safra": "2025/26",
-               "obs": "Milho em grão. Piso nominal de referência da PGPM."}],
+    # Feijão: dois tipos oficiais, ambos nacionais, inalterados na safra.
+    "feijao": [
+        {"regioes": None, "valor": 152.91, "unidade": "R$/60kg", "safra": "2025/26",
+         "obs": "Feijão em CORES (comum/carioca). Piso nacional."},
+        {"regioes": None, "valor": 181.23, "unidade": "R$/60kg", "safra": "2025/26",
+         "obs": "Feijão PRETO. Piso nacional."},
+    ],
+    # Milho: 4 faixas macrorregionais (as UFs do NE oeste caem no Nordeste).
+    "milho": [
+        {"regioes": ["Sul"], "valor": 55.64, "unidade": "R$/60kg", "safra": "2025/26",
+         "obs": "Milho em grão — Rio Grande do Sul e Santa Catarina."},
+        {"regioes": ["Sudeste"], "valor": 51.03, "unidade": "R$/60kg", "safra": "2025/26",
+         "obs": "Milho em grão — Sudeste e Paraná."},
+        {"regioes": ["Centro-Oeste", "Norte"], "valor": 38.28, "unidade": "R$/60kg",
+         "safra": "2025/26",
+         "obs": "Milho em grão — Centro-Oeste e Norte (exceto Tocantins e Pará)."},
+        {"regioes": ["Nordeste"], "valor": 63.08, "unidade": "R$/60kg", "safra": "2026/27",
+         "obs": "Milho em grão — Nordeste (vigência jun/2026 a mai/2027)."},
+    ],
+    "soja": [
+        {"regioes": None, "valor": 71.04, "unidade": "R$/60kg", "safra": "2025/26",
+         "obs": "Soja em grão. Único item com PREÇO REDUZIDO nesta safra (-6,87%)."},
+    ],
     "cafe": [{"regioes": None, "valor": 792.53, "unidade": "R$/60kg", "safra": "2026/27",
               "obs": "Café arábica (saca beneficiada de 60 kg)."}],
     "cafe_conilon": [{"regioes": None, "valor": 556.97, "unidade": "R$/60kg", "safra": "2026/27",

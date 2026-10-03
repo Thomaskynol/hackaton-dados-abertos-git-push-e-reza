@@ -381,7 +381,11 @@ def _t_buscar_area_sigef(db, args):
         q["cultura_canonica"] = cultura
     if not q:
         return {"erro": "informe cod_ibge e/ou cultura"}
-    docs = _find_many(col, q, limit=5)
+    # Ordena por ÁREA (o que responde "o que mais se planta").
+    # Sem sort, o Mongo devolve em ordem de inserção e a cultura "topo"
+    # virava qualquer uma — foi assim que feijão (215 ha) aparecia como
+    # principal em Araraquara, onde a soja tem 1996,86 ha.
+    docs = _find_many(col, q, sort=[("area_total_ha", -1)], limit=5)
     if not docs:
         return {"erro": "sem dados SIGEF para o filtro"}
     out = []
@@ -477,6 +481,44 @@ def _t_buscar_preco_conab(db, args):
     }
 
 
+def _t_buscar_clima(db, args):
+    """Previsão real (Open-Meteo) + eventos para o município: chuva recente,
+    geada, onda de calor, chuva forte, veranico. Nunca raise."""
+    ibge = _ibge7(args.get("ibge") or args.get("cod_ibge") or "")
+    uf = (args.get("uf") or "").strip().upper() or None
+    cultura = args.get("cultura")
+    try:
+        from .clima import buscar_previsao, detectar_eventos
+    except Exception:
+        try:
+            from app.clima import buscar_previsao, detectar_eventos  # type: ignore
+        except Exception:
+            return {"erro": "camada de clima indisponivel"}
+    try:
+        from .precos_dados import rotulo_cultura, canon_cultura
+        cult_label = rotulo_cultura(canon_cultura(cultura)) if cultura else None
+    except Exception:
+        cult_label = None
+    prev = buscar_previsao(db, ibge=ibge or None, uf=uf)
+    if not prev:
+        return {"erro": "sem previsao disponivel agora"}
+    eventos = detectar_eventos(prev, cult_label)
+    dias = prev.get("dias") or []
+    # resumo compacto: só o essencial para o agente raciocinar
+    prox = [{"data": d["data"], "tmin": d.get("tmin"), "tmax": d.get("tmax"),
+             "chuva_mm": d.get("chuva_mm")} for d in dias if d.get("futuro")][:7]
+    return {
+        "local": (prev.get("local") or {}).get("nome"),
+        "uf": (prev.get("local") or {}).get("uf"),
+        "proximos_dias": prox,
+        "eventos": [{"tipo": e["tipo"], "severidade": e.get("severidade"),
+                     "mensagem": e["mensagem"]} for e in eventos],
+        "fonte": prev.get("fonte"),
+        "observacao": "Previsao real do Open-Meteo. Use os eventos para orientar o manejo; "
+                      "nunca invente numeros que nao estejam aqui.",
+    }
+
+
 _HANDLERS = {
     "buscar_municipio": _t_buscar_municipio,
     "buscar_janelas_zarc": _t_buscar_janelas_zarc,
@@ -485,6 +527,7 @@ _HANDLERS = {
     "buscar_area_sigef": _t_buscar_area_sigef,
     "buscar_irrigacao_ana": _t_buscar_irrigacao_ana,
     "buscar_preco_conab": _t_buscar_preco_conab,
+    "buscar_clima": _t_buscar_clima,
 }
 
 
@@ -557,4 +600,12 @@ TOOLS_SCHEMA = [
                        "properties": {"cultura": {"type": "string"},
                                       "uf": {"type": "string"}},
                        "required": ["cultura"]}}},
+    {"type": "function", "function": {
+        "name": "buscar_clima",
+        "description": "Previsao real do tempo (Open-Meteo) para o municipio: proximos 7 dias com temperatura e chuva, mais eventos (geada, onda de calor, chuva forte, veranico, chuva recente). Use SEMPRE que a pergunta for sobre clima, tempo, chuva, geada, calor, seca ou 'vai chover'.",
+        "parameters": {"type": "object",
+                       "properties": {"ibge": {"type": "string"},
+                                      "uf": {"type": "string"},
+                                      "cultura": {"type": "string"}},
+                       "required": []}}},
 ]
