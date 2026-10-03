@@ -226,8 +226,8 @@ def main(argv):
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="correlacao/output/precos_conab.jsonl")
     ap.add_argument("--prov", default="correlacao/output/provenance/precos_conab.json")
-    ap.add_argument("--anos", default="2000-2023",
-                    help="intervalo de anos do IBGE, ex: 2010-2023 (default 2000-2023)")
+    ap.add_argument("--anos", default=f"2000-{date.today().year}",
+                    help="intervalo de anos do IBGE, ex: 2010-2025 (default 2000-ano atual)")
     ap.add_argument("--sem-ibge", action="store_true",
                     help="pula o download do IBGE (só PGPM + Cepea)")
     args = ap.parse_args(argv)

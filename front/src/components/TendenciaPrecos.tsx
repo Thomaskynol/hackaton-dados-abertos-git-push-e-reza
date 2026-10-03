@@ -1,6 +1,6 @@
 "use client";
 
-import { TrendingUp, TrendingDown, Minus, LineChart } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, LineChart, Sparkles } from "lucide-react";
 import type { TendenciaPreco } from "@/lib/api";
 
 function brl(v: number) {
@@ -75,15 +75,25 @@ export function TendenciaPrecos({ tendencia }: { tendencia: TendenciaPreco }) {
 
       {projecao && (
         <div className="mt-4 rounded-xl border border-dashed border-terra/40 bg-terra-soft/40 p-3.5">
-          <p className="text-[0.82rem] font-bold uppercase tracking-wide text-terra-ink">
-            Estimativa para {projecao.ano}
-          </p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[0.82rem] font-bold uppercase tracking-wide text-terra-ink">
+              Estimativa para {projecao.ano}
+            </p>
+            {projecao.origem === "ia" && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-terra px-2 py-0.5 text-[0.68rem] font-bold text-white">
+                <Sparkles size={11} aria-hidden /> por IA
+              </span>
+            )}
+          </div>
           <p className="mt-1 text-[1.05rem] font-extrabold text-ink">
             cerca de {brl(projecao.valor_estimado)}
             <span className="ml-1 text-[0.82rem] font-semibold text-muted">
               (entre {brl(projecao.faixa_min)} e {brl(projecao.faixa_max)})
             </span>
           </p>
+          {projecao.racional && (
+            <p className="mt-1.5 text-[0.86rem] leading-relaxed text-ink">{projecao.racional}</p>
+          )}
           <p className="mt-1 text-[0.8rem] leading-relaxed text-muted">
             {tendencia.aviso}
           </p>

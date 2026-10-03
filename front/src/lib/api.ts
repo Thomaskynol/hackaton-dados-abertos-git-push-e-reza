@@ -220,6 +220,10 @@ export interface ProjecaoPreco {
   faixa_min: number;
   faixa_max: number;
   unidade: string;
+  /** "ia" quando a previsão veio do modelo; "tendencia" quando foi regressão. */
+  origem?: "ia" | "tendencia";
+  /** Frase curta explicando o porquê (quando a IA gera). */
+  racional?: string | null;
 }
 
 export interface TendenciaPreco {

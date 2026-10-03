@@ -134,6 +134,7 @@ _COLS = (
     "ana_atlas",
     "agrofit",
     "precos_conab",
+    "precos_meta",
 )
 
 
@@ -149,3 +150,14 @@ class FakeDB:
 def make_db(**cols):
     """make_db(zarc=FakeCol([...]), ...) — demais coleções vazias."""
     return FakeDB(**cols)
+
+
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _sem_rede_ibge(monkeypatch):
+    """Testes unitários não tocam a rede: a atualização viva do IBGE fica OFF por
+    padrão. Os testes de 'série viva' religam explicitamente com monkeypatch.setenv.
+    """
+    monkeypatch.setenv("IBGE_AUTO_UPDATE", "0")

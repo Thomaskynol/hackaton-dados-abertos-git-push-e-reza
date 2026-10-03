@@ -83,14 +83,16 @@ def test_serie_historica_ordenada():
 
 
 def test_tendencia_detecta_subida_e_projeta():
+    from datetime import date
     t = resumo_tendencia(_db_serie(), "feijao", "SP")
     assert t["estado"] == "disponivel"
     assert t["direcao"] == "subindo"
     proj = t["projecao"]
-    assert proj["ano"] == 2024
-    # série sobe R$10/ano -> projeção ~190, dentro de uma faixa
+    # projeta 1 ano à frente do último dado real, nunca no passado
+    assert proj["ano"] >= max(2024, date.today().year)
     assert proj["faixa_min"] <= proj["valor_estimado"] <= proj["faixa_max"]
-    assert proj["valor_estimado"] > 180.0
+    # série sobe -> projeção acima do último valor real (180)
+    assert proj["valor_estimado"] >= 180.0
 
 
 def test_tendencia_serie_curta_insuficiente():
@@ -106,3 +108,46 @@ def test_endpoint_precos_inclui_tendencia():
     r = client.get("/api/precos?uf=SP&cultura=feijao")
     assert r.status_code == 200
     assert "tendencia" in r.json()
+
+
+# --- Previsão: ano futuro, fallback regressão e caminho IA ---
+from datetime import date
+
+
+def test_projecao_e_para_ano_futuro():
+    """A projeção deve mirar o futuro próximo e nunca um ano já passado/no último dado."""
+    t = resumo_tendencia(_db_serie(), "feijao", "SP")
+    assert t["projecao"]["ano"] > t["ultimo"]["ano"]
+    assert t["projecao"]["ano"] >= date.today().year
+
+
+def test_projecao_fallback_regressao_sem_ia(monkeypatch):
+    """Sem IA (prever_preco_ia -> None), projeção vem da regressão (origem tendencia)."""
+    import app.llm as llm
+    monkeypatch.setattr(llm, "prever_preco_ia", lambda *a, **k: None)
+    t = resumo_tendencia(_db_serie(), "feijao", "SP")
+    assert t["projecao"]["origem"] == "tendencia"
+
+
+def test_projecao_usa_ia_quando_disponivel(monkeypatch):
+    """Com IA respondendo, a projeção vem do modelo (origem ia + racional)."""
+    import app.llm as llm
+    fake = {
+        "ano": date.today().year + 1, "valor_estimado": 199.9,
+        "faixa_min": 180.0, "faixa_max": 220.0, "unidade": "R$/60kg",
+        "origem": "ia", "racional": "A série vem subindo de forma constante.",
+    }
+    monkeypatch.setattr(llm, "prever_preco_ia", lambda *a, **k: fake)
+    t = resumo_tendencia(_db_serie(), "feijao", "SP")
+    assert t["projecao"]["origem"] == "ia"
+    assert t["projecao"]["valor_estimado"] == 199.9
+    assert t["projecao"]["racional"]
+
+
+def test_prever_preco_ia_sem_chave(monkeypatch):
+    """Sem OPENROUTER_API_KEY, prever_preco_ia devolve None (nunca inventa)."""
+    import app.llm as llm
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    serie = [{"ano": 2020, "valor": 100.0}, {"ano": 2021, "valor": 110.0},
+             {"ano": 2022, "valor": 120.0}]
+    assert llm.prever_preco_ia("Feijão", "SP", "R$/60kg", serie, 2027) is None

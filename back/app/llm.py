@@ -438,3 +438,79 @@ def gerar_analise_comercial(contexto_dados: str) -> str | None:
         return (texto or "").strip() or None
     except Exception:
         return None
+
+
+# --- Previsão de preço por IA (usa a série histórica real como entrada) ---
+
+SYSTEM_PREVISAO = (
+    "Você é um analista de mercado agrícola. Recebe uma SÉRIE HISTÓRICA REAL de preço "
+    "médio anual recebido pelo produtor (fonte IBGE) e deve estimar o preço do ano pedido. "
+    "Baseie-se SÓ nos números fornecidos e na tendência que eles mostram; não invente dados "
+    "externos nem cite fatos que não estão na série. "
+    "Responda em JSON puro, sem markdown, com exatamente estas chaves: "
+    '{"valor_estimado": number, "faixa_min": number, "faixa_max": number, '
+    '"racional": "uma frase curta em PT-BR simples, linguagem de produtor, explicando o porquê"}. '
+    "A faixa deve refletir a incerteza (quanto mais longe o ano, maior). "
+    "Nunca diga para vender ou esperar. Valores em reais por saca."
+)
+
+
+def prever_preco_ia(cultura: str, uf: str, unidade: str, serie: list, ano_alvo: int):
+    """Previsão de preço via LLM a partir da série real. Dict ou None.
+
+    `serie` é lista de {"ano","valor"} (dados reais do IBGE). Sem chave, série
+    curta, falha de rede ou JSON inválido -> None (o chamador cai na regressão).
+    """
+    key = os.getenv("OPENROUTER_API_KEY")
+    if not key or not serie or len(serie) < 3:
+        return None
+    pontos = "; ".join(f"{p['ano']}: R$ {p['valor']}" for p in serie if p.get("valor") is not None)
+    if not pontos:
+        return None
+    user = (
+        f"Cultura: {cultura}. Estado: {uf}. Unidade: {unidade}.\n"
+        f"Série histórica real (preço médio ao produtor, IBGE):\n{pontos}\n"
+        f"Estime o preço para o ano {ano_alvo}. Lembre que o último dado real pode ser de anos "
+        f"atrás; projete com a incerteza adequada. Responda só o JSON."
+    )
+    try:
+        resp = httpx.post(
+            URL, headers=_headers(key),
+            json={
+                "model": MODEL,
+                "messages": [
+                    {"role": "system", "content": SYSTEM_PREVISAO},
+                    {"role": "user", "content": user},
+                ],
+                "response_format": {"type": "json_object"},
+            },
+            timeout=TIMEOUT_S,
+        )
+        resp.raise_for_status()
+        texto = (resp.json().get("choices") or [{}])[0].get("message", {}).get("content", "")
+        texto = (texto or "").strip()
+        if not texto:
+            return None
+        # tolera cerca de ```json ... ``` caso o modelo ignore o response_format
+        if texto.startswith("```"):
+            texto = texto.strip("`")
+            if texto.lower().startswith("json"):
+                texto = texto[4:]
+        obj = json.loads(texto)
+        ve = float(obj["valor_estimado"])
+        fmin = float(obj.get("faixa_min", ve))
+        fmax = float(obj.get("faixa_max", ve))
+        if ve <= 0:
+            return None
+        lo, hi = sorted((fmin, fmax))
+        return {
+            "ano": int(ano_alvo),
+            "valor_estimado": round(ve, 2),
+            "faixa_min": round(max(0.0, lo), 2),
+            "faixa_max": round(hi, 2),
+            "unidade": unidade,
+            "origem": "ia",
+            "racional": str(obj.get("racional") or "").strip()[:300] or None,
+        }
+    except Exception:
+        return None

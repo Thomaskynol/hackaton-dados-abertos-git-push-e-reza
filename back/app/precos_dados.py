@@ -13,14 +13,124 @@ Cepea/ESALQ nunca traz número: só o LINK oficial (restrição de licença).
 Nunca raise: qualquer falha -> fallback honesto (pendente), nunca quebra a rota.
 """
 import json
+import logging
 import os
+import time
 import unicodedata
 from functools import lru_cache
+
+log = logging.getLogger(__name__)
 
 # Caminho do dataset gerado pelo ingestor (relativo à raiz do repo).
 _AQUI = os.path.dirname(os.path.abspath(__file__))
 _RAIZ = os.path.dirname(os.path.dirname(_AQUI))  # back/app -> back -> raiz
 _JSONL = os.path.join(_RAIZ, "correlacao", "output", "precos_conab.jsonl")
+
+# --- Atualização VIVA da série (busca o dado mais recente do IBGE sob demanda) ---
+# Liga/desliga por env (IBGE_AUTO_UPDATE=0 para desligar em ambiente sem rede).
+# TTL evita martelar a API: só revalida uma cultura a cada N dias.
+def _auto_update_ligado():
+    return os.getenv("IBGE_AUTO_UPDATE", "1").strip().lower() not in ("0", "false", "no")
+
+
+def _ttl_segundos():
+    try:
+        return max(3600, int(float(os.getenv("IBGE_TTL_DIAS", "7")) * 86400))
+    except (TypeError, ValueError):
+        return 7 * 86400
+
+
+def _ano_mais_recente_no_db(db, cult):
+    """Maior ano de serie_produtor já salvo para a cultura. 0 se não houver.
+
+    Itera e pega o máximo (não depende de sort — funciona no Mongo e no fake).
+    """
+    try:
+        cur = db.precos_conab.find(
+            {"cultura_canonica": cult, "tipo": "serie_produtor"}, {"_id": 0, "ano": 1})
+        anos = []
+        for d in cur:
+            try:
+                anos.append(int(d.get("ano")))
+            except (TypeError, ValueError):
+                continue
+        return max(anos) if anos else 0
+    except Exception:
+        return 0
+
+
+def _marcar_checagem(db, cult, ok, ultimo_ano):
+    try:
+        db.precos_meta.update_one(
+            {"_id": f"serie:{cult}"},
+            {"$set": {"last_check_ts": int(time.time()), "last_ok": bool(ok),
+                      "ultimo_ano": int(ultimo_ano or 0)}},
+            upsert=True)
+    except Exception:
+        pass
+
+
+def _precisa_revalidar(db, cult):
+    try:
+        meta = db.precos_meta.find_one({"_id": f"serie:{cult}"})
+    except Exception:
+        meta = None
+    if not meta:
+        return True
+    return (int(time.time()) - int(meta.get("last_check_ts") or 0)) > _ttl_segundos()
+
+
+def atualizar_serie_viva(db, cultura):
+    """Best-effort: busca no IBGE os anos que faltam e grava no Mongo (upsert).
+
+    Só roda se: auto-update ligado, há Mongo, a cultura tem PAM e o TTL venceu.
+    Nunca raise; nunca bloqueia a resposta por muito tempo (timeout curto).
+    """
+    if not _auto_update_ligado() or db is None:
+        return
+    cult = canon_cultura(cultura) if cultura else None
+    if not cult:
+        return
+    try:
+        from .precos_ibge import cultura_tem_ibge, ultimo_ano_disponivel, buscar_serie
+    except Exception:
+        return
+    if not cultura_tem_ibge(cult):
+        return
+    if not _precisa_revalidar(db, cult):
+        return
+
+    try:
+        ultimo_api = ultimo_ano_disponivel()
+    except Exception:
+        ultimo_api = None
+    if not ultimo_api:
+        _marcar_checagem(db, cult, False, _ano_mais_recente_no_db(db, cult))
+        return
+
+    ultimo_db = _ano_mais_recente_no_db(db, cult)
+    if ultimo_api <= ultimo_db:
+        _marcar_checagem(db, cult, True, ultimo_db)  # já estamos em dia
+        return
+
+    anos_novos = list(range(ultimo_db + 1, ultimo_api + 1)) if ultimo_db else None
+    docs = buscar_serie(cult, anos=anos_novos)
+    if not docs:
+        _marcar_checagem(db, cult, False, ultimo_db)
+        return
+    gravados = 0
+    for d in docs:
+        try:
+            db.precos_conab.update_one(
+                {"cultura_canonica": d["cultura_canonica"], "tipo": "serie_produtor",
+                 "uf": d["uf"], "ano": d["ano"]},
+                {"$set": d}, upsert=True)
+            gravados += 1
+        except Exception:
+            continue
+    _carregar_arquivo.cache_clear()  # invalida cache de arquivo p/ refletir o novo
+    log.info("serie viva: %s +%d docs (ate %s)", cult, gravados, ultimo_api)
+    _marcar_checagem(db, cult, True, ultimo_api)
 
 # Rótulos amigáveis por cultura canônica (espelha o front CULTURA_LABEL).
 CULTURA_LABEL = {
@@ -233,6 +343,11 @@ def serie_historica(db, cultura, uf, anos=None):
     cult = canon_cultura(cultura) if cultura else None
     if not cult:
         return []
+    # Mantém a série viva: busca anos novos do IBGE sob demanda (best-effort).
+    try:
+        atualizar_serie_viva(db, cultura)
+    except Exception:
+        pass
     linhas = [l for l in _linhas(db, cultura) if l.get("tipo") == "serie_produtor"]
     if not linhas:
         return []
@@ -303,22 +418,62 @@ def resumo_tendencia(db, cultura, uf):
     projecao = None
     direcao = "estável"
     if a is not None:
-        prox_ano = ult["ano"] + 1
+        # Projeta sempre 1 ano à frente do ÚLTIMO DADO REAL — assim a estimativa
+        # fica ancorada no presente e perto da realidade (nunca extrapola anos a
+        # fio no escuro). Se por acaso esse ano já passou, avança para o ano que vem.
+        from datetime import date as _date
+        prox_ano = max(ult["ano"] + 1, _date.today().year)
         proj = a * prox_ano + b
-        # faixa de incerteza: dispersão dos últimos resíduos
+        # faixa de incerteza: base = dispersão dos resíduos recentes, crescendo
+        # conforme o ano projetado se afasta do último dado real.
         resid = [abs(p["valor"] - (a * p["ano"] + b)) for p in serie[-8:]]
         margem = round(sum(resid) / len(resid), 2) if resid else 0.0
-        proj = round(max(0.0, proj), 2)
+        anos_adiante = max(1, prox_ano - ult["ano"])
+        margem = round(margem * (1 + 0.15 * (anos_adiante - 1)), 2)
+        # Clamp de realidade: a projeção não pode se afastar mais de ~35% por ano
+        # do último preço real. Impede que a reta de longo prazo ignore uma queda
+        # ou alta recente e cuspa um número irreal.
+        teto = ult["valor"] * (1 + 0.35 * anos_adiante)
+        piso = ult["valor"] * (1 - 0.35 * anos_adiante)
+        proj = round(min(max(proj, max(0.0, piso)), teto), 2)
         projecao = {
             "ano": prox_ano,
             "valor_estimado": proj,
             "faixa_min": round(max(0.0, proj - margem), 2),
             "faixa_max": round(proj + margem, 2),
             "unidade": ult["unidade"],
+            "origem": "tendencia",
+            "racional": None,
         }
         # direção pela inclinação relativa à média recente
         if media_rec and abs(a) / media_rec > 0.02:
             direcao = "subindo" if a > 0 else "caindo"
+
+        # Previsão por IA: usa a série REAL como entrada. Se houver chave e o
+        # modelo responder, ela substitui a regressão (que vira o fallback).
+        try:
+            from .llm import prever_preco_ia
+            cult_label = rotulo_cultura(canon_cultura(cultura))
+            ia = prever_preco_ia(cult_label, (uf or "").upper(), ult["unidade"], serie, prox_ano)
+            if ia and ia.get("valor_estimado"):
+                # Mesmo clamp de realidade aplicado à IA: ela usa a série real,
+                # mas ainda assim não deixamos a estimativa fugir do último preço.
+                ia["valor_estimado"] = round(min(max(ia["valor_estimado"], max(0.0, piso)), teto), 2)
+                if ia.get("faixa_min") is not None:
+                    ia["faixa_min"] = round(min(max(ia["faixa_min"], 0.0), ia["valor_estimado"]), 2)
+                if ia.get("faixa_max") is not None:
+                    ia["faixa_max"] = round(max(ia["faixa_max"], ia["valor_estimado"]), 2)
+                projecao = ia
+        except Exception:
+            pass
+
+    por_ia = bool(projecao and projecao.get("origem") == "ia")
+    como = "pela IA, a partir da série real do IBGE" if por_ia else "pela tendência dos últimos anos"
+    aviso = (f"Estimativa feita {como}. É apoio ao planejamento, não garantia de preço.")
+    if projecao and (projecao["ano"] - ult["ano"]) >= 2:
+        aviso = (f"O dado oficial mais recente do IBGE é de {ult['ano']}; a estimativa para "
+                 f"{projecao['ano']} foi feita {como}, com margem maior por olhar mais anos à frente. "
+                 f"É apoio ao planejamento, não garantia de preço.")
 
     return {
         "estado": "disponivel",
@@ -333,5 +488,5 @@ def resumo_tendencia(db, cultura, uf):
         "projecao": projecao,
         "serie": serie,
         "fonte": "IBGE — Produção Agrícola Municipal (PAM)",
-        "aviso": "Projeção baseada na tendência dos últimos anos. É uma estimativa de apoio ao planejamento, não uma garantia de preço.",
+        "aviso": aviso,
     }
