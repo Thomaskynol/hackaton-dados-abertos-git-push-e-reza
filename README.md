@@ -49,6 +49,25 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\agropilot.ps1
 ./scripts/agropilot.sh
 ```
 
+### Sem `sudo` (notebook da faculdade, máquina de aula, container)
+
+O instalador primeiro tenta o gerenciador do SO. Se ele não puder — sem senha,
+sem `sudo`, sem pacote no repositório — ele baixa os binários oficiais e deixa
+tudo em `~/.local/bin`, sem pedir root e sem escrever em `/usr`. Cobre MongoDB,
+`mongosh`, Database Tools (`mongorestore`) e Node.js.
+
+Nada muda na frente: é o mesmo comando.
+
+```bash
+python scripts/agropilot.py doctor    # mostra se a máquina é rootless
+```
+
+Se preferir garantir que `sudo` nunca é chamado:
+
+```bash
+AGROPILOT_SEM_ROOT=1 python scripts/agropilot.py
+```
+
 ### Comandos do dia a dia
 
 ```bash

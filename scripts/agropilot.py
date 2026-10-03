@@ -23,7 +23,15 @@ Variaveis de ambiente
     AGROPILOT_MONGO=mongodb://localhost:27017
     AGROPILOT_SKIP_DOWNLOAD=1    nao tenta baixar o seed (usa o que esta em seed/)
     AGROPILOT_IGNORAR_HASH=1     restaura mesmo se o sha256 nao bater
+    AGROPILOT_SEM_ROOT=1         nunca chama sudo; instala so no home do usuario
     SEED_URL / GH_TOKEN          origem alternativa do dump (repo privado)
+
+Linux sem root
+--------------
+    Nem toda maquina de aluno tem sudo. Quando o gerenciador do SO falha (ou
+    AGROPILOT_SEM_ROOT=1), o script instala MongoDB, mongosh, Database Tools e
+    Node.js a partir dos tarballs oficiais, dentro de ~/.local/bin. Nada e
+    escrito em /usr, nada precisa de senha.
 """
 
 from __future__ import annotations
@@ -65,6 +73,23 @@ API_URL = f"http://127.0.0.1:{PORTA_API}"
 FRONT_URL = f"http://localhost:{PORTA_FRONT}"
 
 IS_WINDOWS = os.name == "nt"
+
+# Onde o instalador sem root guarda os binarios. Entra no PATH do processo e de
+# todos os subprocessos, para que `tem("mongod")` e o Popen do mongod achem o
+# executavel que acabamos de instalar. Entra sempre, mesmo ainda nao existindo:
+# o proprio instalador e quem cria a pasta.
+LOCAL_BIN = os.path.join(os.path.expanduser("~"), ".local", "bin")
+if not IS_WINDOWS:
+    _parts = (os.environ.get("PATH") or "").split(os.pathsep)
+    if LOCAL_BIN not in _parts:
+        os.environ["PATH"] = LOCAL_BIN + os.pathsep + os.environ["PATH"]
+
+VERSAO_DBT = "100.10.0"
+VERSAO_MONGOSH = "2.5.5"
+VERSAO_SERVIDOR_MONGODB = "8.0.4"
+URL_FASTDL = "https://fastdl.mongodb.org"
+URL_MONGOSH = "https://downloads.mongodb.com/compass"
+URL_NODE_INDEX = "https://nodejs.org/dist/index.json"
 # Logs e PIDs no temp do usuario: nao suja o repo.
 TMP = os.path.join(
     os.environ.get("TEMP") or os.environ.get("TMPDIR") or "/tmp", "agropilot"
@@ -193,9 +218,260 @@ def como_instalar() -> str:
     return ""
 
 
-def instalar_sistema(rotulo: str, verificacao, winget_id: str | None,
-                     linux_cmd: list[str] | None = None) -> bool:
-    """Instala um pacote pelo gerenciador do SO. True se ficou pronto."""
+def tem_sudo() -> bool:
+    """Diz se da para instalar pelo gerenciador do SO (root de verdade ou sudo)."""
+    if hasattr(os, "geteuid") and os.geteuid() == 0:
+        return True
+    return shutil.which("sudo") is not None
+
+
+def sudo_sem_senha() -> bool:
+    """sudo funciona sem digitar nada (util para saber se o script trava)."""
+    if not tem_sudo():
+        return False
+    return ok(rodar(["sudo", "-n", "true"], timeout=10))
+
+
+def sem_root_forcado() -> bool:
+    """AGROPILOT_SEM_ROOT=1 manda nunca chamar sudo."""
+    return os.getenv("AGROPILOT_SEM_ROOT", "").strip() not in ("", "0", "false")
+
+
+def _os_release() -> tuple[str, str]:
+    """(ID, VERSION_ID) do /etc/os-release. Mint devolve a versao do Ubuntu."""
+    for caminho in ("/etc/os-release", "/usr/lib/os-release"):
+        try:
+            with open(caminho, encoding="utf-8") as fh:
+                dados = dict(
+                    linha.split("=", 1) for linha in fh.read().splitlines()
+                    if "=" in linha and not linha.startswith("#")
+                )
+        except OSError:
+            continue
+        limpado = {k: v.strip().strip('"') for k, v in dados.items()}
+        id_ = limpado.get("ID", "")
+        versao = limpado.get("VERSION_ID", "")
+        if id_ == "linuxmint":
+            versao = {"22": "24.04", "21": "22.04", "20": "20.04"}.get(
+                versao.split(".")[0], versao)
+            id_ = "ubuntu"
+        if not versao:
+            for caminho_up in ("/etc/upstream-release/lsb-release", "/etc/lsb-release"):
+                try:
+                    with open(caminho_up, encoding="utf-8") as fh:
+                        for linha in fh.read().splitlines():
+                            if linha.startswith("DISTRIB_RELEASE="):
+                                versao = linha.split("=", 1)[1].strip().strip('"')
+                except OSError:
+                    pass
+                if versao:
+                    break
+        return id_, versao
+    return "", ""
+
+
+ARQ_MONGODB = {
+    "ubuntu2204": "ubuntu2204", "jammy": "ubuntu2204",
+    "ubuntu2404": "ubuntu2404", "noble": "ubuntu2404",
+    "ubuntu2004": "ubuntu2004", "focal": "ubuntu2004",
+    "debian11": "debian11", "bullseye": "debian11",
+    "debian12": "debian12", "bookworm": "debian12",
+    "rhel80": "rhel80", "rhel90": "rhel90",
+}
+ARQUITETURA_MONGODB = {"x86_64": "x86_64", "amd64": "x86_64",
+                       "aarch64": "aarch64", "arm64": "aarch64"}
+# Ordem de tentativa quando a distro nao bate com nenhum nome conhecido.
+FALLBACKS_MONGODB = ["ubuntu2404", "ubuntu2204", "debian12", "debian11",
+                     "rhel90", "rhel80", "ubuntu2004"]
+
+
+def _url_existe(url: str) -> bool:
+    try:
+        req = urllib.request.Request(url, method="HEAD")
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return r.status == 200
+    except Exception:
+        return False
+
+
+def build_mongodb() -> str | None:
+    """Nome da build do MongoDB que serve nesta maquina (ubuntu2404, rhel90...)."""
+    arch = ARQUITETURA_MONGODB.get(platform.machine())
+    if not arch:
+        return None
+    _id, versao = _os_release()
+    achado = ARQ_MONGODB.get(versao.replace(".", ""))
+    candidatas = ([achado] if achado else []) + [
+        c for c in FALLBACKS_MONGODB if c != achado]
+    for build in candidatas:
+        url = (f"{URL_FASTDL}/tools/db/mongodb-database-tools-"
+               f"{build}-{arch}-{VERSAO_DBT}.tgz")
+        if _url_existe(url):
+            return build
+    return None
+
+
+def instalar_tarball(url: str, destino: str = LOCAL_BIN) -> list[str]:
+    """Baixa um pacote .tgz/.tar.xz e copia o que esta em <pacote>/bin/ pro home.
+
+    Devolve os nomes instalados. Levanta RuntimeError se o pacote nao tiver
+    pasta bin/ ou se o download falhar.
+    """
+    import tarfile
+    import tempfile
+
+    if IS_WINDOWS:
+        raise RuntimeError("instalar por tarball so funciona no Linux/macOS")
+
+    os.makedirs(destino, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="agropilot-") as tmp:
+        say(f"baixando {url.rsplit('/', 1)[-1]} ...")
+        pacote = os.path.join(tmp, "pacote.tar")
+        if not _baixar(url, pacote, None):
+            raise RuntimeError(f"download falhou: {url}")
+        with tarfile.open(pacote) as tf:
+            try:
+                tf.extractall(tmp, filter="data")
+            except TypeError:
+                tf.extractall(tmp)
+
+        achados: list[str] = []
+        for raiz, _dirs, arquivos in os.walk(tmp):
+            if os.path.basename(raiz) == "bin":
+                achados = [os.path.join(raiz, a) for a in arquivos]
+                break
+        if not achados:
+            raise RuntimeError(f"o pacote {url} nao tem pasta bin/")
+
+        for caminho in achados:
+            shutil.copy2(caminho, os.path.join(destino, os.path.basename(caminho)))
+        nomes = [os.path.basename(c) for c in achados]
+
+    for nome in nomes:
+        alvo = os.path.join(destino, nome)
+        if os.path.isfile(alvo) and not os.access(alvo, os.X_OK):
+            os.chmod(alvo, 0o755)
+    say(f"instalado em {destino}: " + ", ".join(nomes))
+    return nomes
+
+
+def instalar_dbt_sem_root() -> None:
+    """MongoDB Database Tools (mongorestore, mongodump) no home do usuario."""
+    build = build_mongodb()
+    if not build:
+        raise RuntimeError(
+            "distro sem build conhecida do MongoDB; instale manualmente em "
+            "https://www.mongodb.com/try/download/database-tools")
+    arch = ARQUITETURA_MONGODB[platform.machine()]
+    instalar_tarball(f"{URL_FASTDL}/tools/db/mongodb-database-tools-"
+                     f"{build}-{arch}-{VERSAO_DBT}.tgz")
+
+
+def instalar_mongosh_sem_root() -> None:
+    """mongosh no home do usuario."""
+    arch = {"x86_64": "x64", "amd64": "x64",
+            "aarch64": "arm64", "arm64": "arm64"}.get(platform.machine())
+    if not arch:
+        raise RuntimeError("arquitetura sem build oficial do mongosh")
+    instalar_tarball(f"{URL_MONGOSH}/mongosh-{VERSAO_MONGOSH}-linux-{arch}.tgz")
+
+
+def instalar_mongod_sem_root() -> None:
+    """Servidor mongod no home do usuario (para rodar local, sem systemd)."""
+    build = build_mongodb()
+    if not build:
+        raise RuntimeError(
+            "distro sem build conhecida do MongoDB; instale manualmente em "
+            "https://www.mongodb.com/try/download/community")
+    arch = ARQUITETURA_MONGODB[platform.machine()]
+    instalar_tarball(f"{URL_FASTDL}/linux/mongodb-linux-{arch}-{build}-"
+                     f"{VERSAO_SERVIDOR_MONGODB}.tgz")
+
+
+def instalar_node_sem_root() -> None:
+    """Node.js LTS no home do usuario. npm precisa da pasta lib/ junto, entao o
+    pacote vai inteiro para ~/.local/lib/node/<versao> e o bin/ e linkado."""
+    import tarfile
+    import tempfile
+
+    arch = {"x86_64": "x64", "amd64": "x64",
+            "aarch64": "arm64", "arm64": "arm64"}.get(platform.machine())
+    if not arch:
+        raise RuntimeError("arquitetura sem build oficial do Node.js")
+    with urllib.request.urlopen(URL_NODE_INDEX, timeout=60) as r:
+        versoes = json.loads(r.read().decode("utf-8"))
+    alvo = next((v for v in versoes
+                 if v.get("lts") and f"linux-{arch}" in v.get("files", [])), None)
+    if not alvo:
+        raise RuntimeError("nodejs.org/dist/index.json sem LTS para linux")
+
+    # O index.json ja traz o "v" em `version` (ex.: "v24.21.0").
+    tag = alvo["version"] if alvo["version"].startswith("v") else f"v{alvo['version']}"
+    base = os.path.join(os.path.expanduser("~"), ".local", "lib", "node",
+                        tag.lstrip("v"))
+    if os.path.exists(os.path.join(base, "bin", "node")):
+        say(f"Node.js {alvo['lts']} ja esta em {base}")
+    else:
+        url = f"https://nodejs.org/dist/{tag}/node-{tag}-linux-{arch}.tar.xz"
+        with tempfile.TemporaryDirectory(prefix="agropilot-") as tmp:
+            say(f"baixando Node.js {alvo['lts']} ({tag}) ...")
+            pacote = os.path.join(tmp, "node.tar.xz")
+            if not _baixar(url, pacote, None):
+                raise RuntimeError(f"download falhou: {url}")
+            with tarfile.open(pacote) as tf:
+                try:
+                    tf.extractall(tmp, filter="data")
+                except TypeError:
+                    tf.extractall(tmp)
+            extraido = os.path.join(tmp, f"node-{tag}-linux-{arch}")
+            os.makedirs(os.path.dirname(base), exist_ok=True)
+            if os.path.exists(base):
+                shutil.rmtree(base)
+            shutil.move(extraido, base)
+
+    os.makedirs(LOCAL_BIN, exist_ok=True)
+    for nome in ("node", "npm", "npx"):
+        origem = os.path.join(base, "bin", nome)
+        if not os.path.exists(origem):
+            continue
+        destino = os.path.join(LOCAL_BIN, nome)
+        if os.path.islink(destino) or os.path.exists(destino):
+            os.remove(destino)
+        os.symlink(origem, destino)
+    say(f"Node.js {alvo['lts']} instalado; linkado em {LOCAL_BIN}")
+
+
+def _sem_root(rotulo: str, verificacao, sem_root, motivo: str) -> bool:
+    """Ultimo recurso: instala no home do usuario, sem pedir root."""
+    if not sem_root:
+        aviso(f"nao sei instalar {rotulo} automaticamente: {motivo}")
+        if "Tools" in rotulo:
+            aviso("  https://www.mongodb.com/try/download/database-tools")
+        elif rotulo.lower().startswith("mongosh"):
+            aviso("  https://www.mongodb.com/try/download/shell")
+        elif rotulo.startswith("MongoDB"):
+            aviso("  https://www.mongodb.com/try/download/community")
+        elif rotulo.startswith("Node"):
+            aviso("  https://nodejs.org/en/download")
+        return False
+    aviso(f"{motivo}; instalando {rotulo} no seu home (sem root) ...")
+    try:
+        sem_root()
+    except Exception as e:
+        erro(f"instalacao de {rotulo} sem root falhou: {e}")
+        return False
+    return bool(verificacao())
+
+
+def instalar_sistema(rotulo: str, verificacao, winget_id: str | None = None,
+                     linux_cmd: list[str] | None = None,
+                     sem_root=None) -> bool:
+    """Instala um pacote pelo gerenciador do SO. True se ficou pronto.
+
+    `sem_root` e um callable alternativo, sem root, para instalar no home do
+    usuario. Ele so entra quando o gerenciador do SO nao resolve (sem sudo, sem
+    pacote, ou AGROPILOT_SEM_ROOT=1).
+    """
     if verificacao():
         return True
     ger = como_instalar()
@@ -204,22 +480,23 @@ def instalar_sistema(rotulo: str, verificacao, winget_id: str | None,
         rodar(["winget", "install", "--id", winget_id, "--source", "winget",
                "--accept-package-agreements", "--accept-source-agreements"],
               timeout=900)
-    elif ger == "choco" and winget_id:
+        return bool(verificacao())
+    if ger == "choco" and winget_id:
         say(f"instalando {rotulo} (choco) ...")
         rodar(["choco", "install", winget_id, "-y"], timeout=900)
-    elif ger and linux_cmd:
+        return bool(verificacao())
+    if ger and linux_cmd and not sem_root_forcado():
         say(f"instalando {rotulo} ({ger}) — pode pedir senha ...")
         if ger == "apt-get":
             rodar(["sudo", "apt-get", "update", "-qq"], timeout=600)
-        rodar(["sudo", ger, "install", "-y", *linux_cmd], timeout=1200)
-    else:
-        aviso(f"nao sei instalar {rotulo} automaticamente neste SO.")
-        if rotulo.startswith("MongoDB"):
-            aviso("  https://www.mongodb.com/try/download/community")
-        elif rotulo.startswith("Node"):
-            aviso("  https://nodejs.org/en/download")
-        return False
-    return bool(verificacao())
+        r = rodar(["sudo", ger, "install", "-y", *linux_cmd], timeout=1200)
+        if ok(r) and verificacao():
+            return True
+        return _sem_root(rotulo, verificacao, sem_root,
+                         "o gerenciador do SO nao deu conta")
+    return _sem_root(rotulo, verificacao, sem_root,
+                     "sem gerenciador de pacotes para root" if not sem_root_forcado()
+                     else "AGROPILOT_SEM_ROOT=1")
 
 
 def garantir_mongo() -> bool:
@@ -245,11 +522,13 @@ def garantir_mongo() -> bool:
     else:
         if not tem("mongod"):
             if not instalar_sistema("MongoDB", lambda: tem("mongod"),
-                                    linux_cmd=["mongodb-org"]):
+                                    linux_cmd=["mongodb-org"],
+                                    sem_root=instalar_mongod_sem_root):
                 return False
         say("subindo o mongod ...")
         dbpath = os.path.join(os.path.expanduser("~"), ".agropilot", "mongo-data")
         os.makedirs(dbpath, exist_ok=True)
+        # `--fork` nao: sem root o mongod nao pode escrever pid em /var.
         subprocess.Popen(["mongod", "--dbpath", dbpath, "--bind_ip", "127.0.0.1",
                           "--port", "27017", "--quiet"],
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
@@ -313,7 +592,8 @@ def garantir_front() -> bool:
     if not tem("npm"):
         instalar_sistema("Node.js LTS", lambda: tem("npm"),
                          winget_id="OpenJS.NodeJS.LTS",
-                         linux_cmd=["nodejs", "npm"])
+                         linux_cmd=["nodejs", "npm"],
+                         sem_root=instalar_node_sem_root)
     if not tem("npm"):
         die("npm nao encontrado — instale Node.js LTS: https://nodejs.org")
     mods = os.path.join(FRONT, "node_modules")
@@ -344,7 +624,7 @@ def ler_manifesto() -> dict:
         return {}
 
 
-def _baixar(url: str, destino: str, token: str | None) -> bool:
+def _baixar(url: str, destino: str, token: str | None = None) -> bool:
     """Baixa com progresso simples. True se deu certo."""
     req = urllib.request.Request(url)
     if token:
@@ -445,6 +725,7 @@ def restaurar(force: bool = False) -> bool:
         erro("mongorestore nao encontrado. Instale as MongoDB Database Tools:")
         erro("  winget install --id MongoDB.DatabaseTools")
         erro("  brew install mongodb-database-tools")
+        erro("  ou, sem root:  python scripts/agropilot.py setup")
         return False
 
     mongosh = achar_mongo_tool("mongosh")
@@ -657,6 +938,16 @@ def doctor() -> int:
     linha("seed/agropilot.gz", os.path.exists(SEED_ARQ))
     linha("docker", tem("docker"), "docker compose up", obrigatorio=False)
     linha("GitHub CLI", tem("gh"), "baixar o seed privado", obrigatorio=False)
+    if IS_WINDOWS or como_instalar() == "brew":
+        print("\n  instalacao: pelo gerenciador do SO")
+    elif sudo_sem_senha():
+        print("\n  instalacao: gerenciador do SO (root); se faltar pacote, "
+              f"cai no home ({LOCAL_BIN})")
+    elif tem_sudo():
+        print(f"\n  instalacao: gerenciador do SO, pode pedir senha; se negar, "
+              f"cai no home ({LOCAL_BIN})")
+    else:
+        print(f"\n  instalacao: SEM ROOT — tudo vai para {LOCAL_BIN}")
     docs = contar_documentos(achar_mongo_tool("mongosh"))
     print("\n  banco agropilot: " + (f"{docs} documentos" if docs >= 0
                                      else "mongosh ausente"))
@@ -675,12 +966,14 @@ def setup() -> bool:
         return False
     if not achar_mongo_tool("mongosh"):
         instalar_sistema("mongosh", lambda: bool(achar_mongo_tool("mongosh")),
-                         winget_id="MongoDB.Shell")
+                         winget_id="MongoDB.Shell",
+                         sem_root=instalar_mongosh_sem_root)
     if not achar_mongo_tool("mongorestore"):
         instalar_sistema("MongoDB Database Tools",
                          lambda: bool(achar_mongo_tool("mongorestore")),
                          winget_id="MongoDB.DatabaseTools",
-                         linux_cmd=["mongodb-database-tools"])
+                         linux_cmd=["mongodb-database-tools"],
+                         sem_root=instalar_dbt_sem_root)
     garantir_env()
     garantir_venv()
     garantir_front()

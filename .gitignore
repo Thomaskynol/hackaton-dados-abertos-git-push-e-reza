@@ -7,10 +7,6 @@ node_modules/
 dist/
 .DS_Store
 
-# dump do mongo p/ Release — pesado, nunca commitar
-seed/*.gz
-seed/*.zip
-
 # bases de dados locais — pesadas, não commitar
 base de dados/
 docs/dados/
