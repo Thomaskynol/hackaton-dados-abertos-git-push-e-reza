@@ -19,19 +19,83 @@ O **AgroPilot** é um copiloto agronômico 24/7 proativo e explicável, desenhad
 
 ## 🚀 Como Executar Localmente
 
-Como foi construído em arquitetura web nativa (HTML5, Vanilla CSS com Design System AgTech e JavaScript ES6+), não há dependências pesadas de compilação:
+Um comando. Funciona igual no **Windows, Linux e macOS**:
 
 ```bash
-# 1. Clone ou acesse a pasta do projeto
-cd /home/aluno/Downloads/hackthon
+git clone <url-do-repo> hackaton-dados-abertos-sql-injection
+cd hackaton-dados-abertos-sql-injection
 
-# 2. Inicie o servidor local (Python ou Node)
-python3 -m http.server 8080
-# ou
-npx serve .
+python scripts/agropilot.py
+```
 
-# 3. Abra no navegador:
-# http://localhost:8080
+Isso instala o que falta (MongoDB, Python, Node), cria o ambiente, baixa a
+base de dados e sobe tudo. Depois:
+
+| Endereço | O que é |
+|---|---|
+| http://localhost:3000 | o aplicativo |
+| http://127.0.0.1:8000/docs | a API (Swagger) |
+| http://127.0.0.1:8000/api/health | se a API está viva |
+
+Atalhos, se preferir:
+
+```powershell
+# Windows
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\agropilot.ps1
+```
+
+```bash
+# Linux / macOS
+./scripts/agropilot.sh
+```
+
+### Comandos do dia a dia
+
+```bash
+python scripts/agropilot.py doctor        # o que falta na máquina
+python scripts/agropilot.py status        # o que está de pé
+python scripts/agropilot.py up / down     # sobe / derruba API e front
+python scripts/agropilot.py logs -f       # acompanha os logs ao vivo
+python scripts/agropilot.py seed --force  # repõe a base do zero
+```
+
+### Se você tem Docker
+
+```bash
+docker compose up
+```
+
+Sobe Mongo, API e front, e restaura o seed sozinho.
+
+### ⚠️ A base de dados é privada
+
+O dump (~34 MB, com ZARC, PSR, SIGEF, Agrofit, ANA e preços do IBGE) fica na
+GitHub Release `data`. Como o repositório é **privado**, o download só funciona
+com autenticação. O instalador tenta, sozinho:
+
+1. o arquivo que já estiver em `seed/agropilot.gz`;
+2. o GitHub CLI, se você estiver logado (`gh auth login`);
+3. um token em `GH_TOKEN`;
+4. uma URL aberta em `SEED_URL`.
+
+Se você já tem o arquivo, é só copiar para `seed/agropilot.gz` e rodar de novo.
+
+### 🔑 IA (opcional)
+
+Sem `OPENROUTER_API_KEY` o sistema funciona inteiro, com dados oficiais e
+respostas honestas sem IA. Para ligar a leitura em linguagem natural, edite
+`back/.env` e preencha a chave.
+
+---
+
+## 🗂️ Comandos úteis
+
+```bash
+# regerar o seed limpo a partir do Mongo local
+python scripts/gerar_seed.py
+
+# conferir o que falta na máquina
+python scripts/agropilot.py doctor
 ```
 
 ---

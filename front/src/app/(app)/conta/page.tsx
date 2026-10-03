@@ -100,7 +100,7 @@ export default function ContaPage() {
               Entrar
             </Link>
             <Link
-              href="/signup"
+              href="/login"
               className="inline-flex min-h-[52px] w-full items-center justify-center rounded-xl2 border border-line bg-canvas px-5 font-bold text-terra-ink"
             >
               Criar conta
@@ -226,7 +226,7 @@ export default function ContaPage() {
               className="min-h-[52px] w-full rounded-xl2 border border-line bg-canvas px-4 text-[1.05rem] text-muted outline-none"
             />
             <p className="mt-1 text-[0.85rem] text-muted">
-              Para trocar de número, crie outra conta em /signup.
+              Para trocar de número, crie outra conta na tela de entrada.
             </p>
           </div>
         </section>

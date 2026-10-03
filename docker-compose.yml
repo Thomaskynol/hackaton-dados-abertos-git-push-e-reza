@@ -78,16 +78,45 @@ services:
       - ./seed:/seed:z
     environment:
       - SEED_URL=${SEED_URL:-https://github.com/Thomaskynol/hackaton-dados-abertos-sql-injection/releases/download/data/agropilot.gz}
-    # ponytail: one-shot; baixa asset só se ausente, restaura só se vazio, sai 0
+      # O repositorio e PRIVADO. Sem token o download responde 404 e o primeiro
+      # `docker compose up` falha sem explicar nada. Com token:
+      #   export GH_TOKEN=ghp_xxx     (ou ponha no .env)
+      - GH_TOKEN=${GH_TOKEN:-}
+    # one-shot: baixa o asset so se ausente, valida o sha256 do manifesto e
+    # restaura so se o banco estiver vazio; sai 0 para o compose nao travar.
     command: >
       bash -c "
         set -e;
+        apt-get update -qq && apt-get install -y -qq curl >/dev/null;
         if [ ! -s /seed/agropilot.gz ]; then
-          apt-get update -qq && apt-get install -y -qq curl >/dev/null &&
-          curl -fL -o /seed/agropilot.gz \"$$SEED_URL\";
+          echo 'baixando a base de dados ...';
+          if [ -n \"$$GH_TOKEN\" ]; then
+            curl -fL -H \"Authorization: Bearer $$GH_TOKEN\" -H 'Accept: application/octet-stream' -o /seed/agropilot.gz \"$$SEED_URL\";
+          else
+            curl -fL -o /seed/agropilot.gz \"$$SEED_URL\" || {
+              echo '';
+              echo 'ERRO: nao consegui baixar o seed (repo privado). Escolha uma:';
+              echo '  - copie o agropilot.gz para ./seed/ na mao; ou';
+              echo '  - export GH_TOKEN=ghp_xxx e rode de novo; ou';
+              echo '  - export SEED_URL=... apontando para uma URL aberta.';
+              exit 1;
+            };
+          fi;
+        fi;
+        if [ -f /seed/manifest.json ]; then
+          ESPERADO=$$(sed -n 's/.*\"sha256\": *\"\([a-f0-9]*\)\".*/\1/p' /seed/manifest.json);
+          if [ -n \"$$ESPERADO\" ]; then
+            OBTIDO=$$(sha256sum /seed/agropilot.gz | cut -d' ' -f1);
+            if [ \"$$ESPERADO\" != \"$$OBTIDO\" ]; then
+              echo 'ERRO: sha256 do seed nao confere com o manifesto (download parcial?).';
+              echo '  apague seed/agropilot.gz e rode de novo.';
+              exit 1;
+            fi;
+            echo 'seed integro (sha256 confere)';
+          fi;
         fi;
         COUNT=$$(mongosh --quiet --host mongo --eval 'try { print(db.getSiblingDB(\"agropilot\").stats().objects) } catch (e) { print(0) }' | tr -cd '0-9');
-        if [ \"$${COUNT:-0}\" -gt 0 ]; then echo \"SKIP: agropilot already has $$COUNT objects\"; exit 0; fi;
+        if [ \"$${COUNT:-0}\" -gt 0 ]; then echo \"SKIP: agropilot ja tem $$COUNT documentos\"; exit 0; fi;
         mongorestore --host mongo --gzip --archive=/seed/agropilot.gz;
         echo RESTORED;
       "

@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from .routes import health, chat, onboarding, produtor, alertas, regiao, sessoes, precos, decisao
+from .routes import health, chat, onboarding, produtor, alertas, regiao, sessoes, precos, decisao, radar
 
 load_dotenv()
 
@@ -35,6 +35,7 @@ app.include_router(regiao.router)
 app.include_router(sessoes.router)
 app.include_router(precos.router)
 app.include_router(decisao.router)
+app.include_router(radar.router)
 
 
 @app.get("/")

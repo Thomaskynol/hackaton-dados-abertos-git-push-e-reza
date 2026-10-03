@@ -8,8 +8,44 @@
  */
 
 export function apiUrl(): string {
-  const raw = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+  // 127.0.0.1 (não "localhost") de propósito: no Windows "localhost" pode
+  // resolver primeiro para IPv6 (::1); se a API escuta só em IPv4, o fetch do
+  // navegador falha e a tela mostra "sem conexão" sem motivo. 127.0.0.1 evita isso.
+  const raw = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
   return raw.replace(/\/+$/, "");
+}
+
+/* ---------------- sessão (token Bearer) ---------------- */
+
+const CHAVE_TOKEN = "agropilot:token";
+
+/** Lê o token da sessão (localStorage). Vazio quando deslogado. */
+export function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(CHAVE_TOKEN);
+  } catch {
+    return null;
+  }
+}
+
+/** Grava (ou apaga, com null) o token da sessão. */
+export function setToken(token: string | null): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (token) localStorage.setItem(CHAVE_TOKEN, token);
+    else localStorage.removeItem(CHAVE_TOKEN);
+  } catch {
+    /* storage indisponível: segue sem persistir */
+  }
+}
+
+/** Headers com Authorization: Bearer quando há token. Mescla com os passados. */
+export function authHeaders(extra?: Record<string, string>): Record<string, string> {
+  const h: Record<string, string> = { ...(extra ?? {}) };
+  const t = getToken();
+  if (t) h["Authorization"] = `Bearer ${t}`;
+  return h;
 }
 
 /* ---------------- produtor ---------------- */
@@ -32,7 +68,7 @@ export interface ProdutorCriado {
 export async function postProdutor(p: ProdutorPayload): Promise<ProdutorCriado> {
   const res = await fetch(`${apiUrl()}/api/produtor`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({
       nome: p.nome,
       telefone: p.telefone,
@@ -79,6 +115,10 @@ export interface Conta {
   onboardingConcluido: boolean;
   hectares_total?: number;
   solo_inferido?: string | null;
+  /** token de sessão (signup/login o devolvem; guardado via setToken). */
+  token?: string;
+  /** true quando a conta tem PIN definido. */
+  tem_pin?: boolean;
   [k: string]: unknown;
 }
 
@@ -124,40 +164,100 @@ function normalizarConta(data: Record<string, unknown>): Conta {
   } as Conta;
 }
 
-/** POST /api/produtor/signup {telefone,nome} -> 201 conta; 409 telefone existe. */
-export async function signup(telefone: string, nome: string): Promise<Conta> {
+/** POST /api/produtor/signup {telefone,nome,pin} -> 201 conta+token; 409 existe; 422 PIN. */
+export async function signup(telefone: string, nome: string, pin?: string): Promise<Conta> {
   const res = await fetch(`${apiUrl()}/api/produtor/signup`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ telefone, nome }),
+    body: JSON.stringify({ telefone, nome, ...(pin ? { pin } : {}) }),
   });
   if (!res.ok) await erroApi(res, "POST /api/produtor/signup");
-  return normalizarConta((await res.json()) as Record<string, unknown>);
+  const conta = normalizarConta((await res.json()) as Record<string, unknown>);
+  if (conta.token) setToken(conta.token); // signup entra logado
+  return conta;
 }
 
-/** POST /api/produtor/login {telefone} -> 200 conta; 404 sem conta. */
-export async function login(telefone: string): Promise<Conta> {
+/** POST /api/produtor/login {telefone,pin?} -> 200 conta+token; 404 sem conta; 401 PIN; 422 falta PIN. */
+export async function login(telefone: string, pin?: string): Promise<Conta> {
   const res = await fetch(`${apiUrl()}/api/produtor/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ telefone }),
+    body: JSON.stringify({ telefone, ...(pin ? { pin } : {}) }),
   });
   if (!res.ok) await erroApi(res, "POST /api/produtor/login");
+  const conta = normalizarConta((await res.json()) as Record<string, unknown>);
+  if (conta.token) setToken(conta.token);
+  return conta;
+}
+
+/** POST /api/produtor/logout — revoga o token no servidor e limpa o local. */
+export async function logout(): Promise<void> {
+  try {
+    await fetch(`${apiUrl()}/api/produtor/logout`, {
+      method: "POST",
+      headers: authHeaders(),
+    });
+  } catch {
+    /* mesmo offline, limpamos o token local abaixo */
+  }
+  setToken(null);
+}
+
+/** GET /api/produtor/me — conta do dono do token. 401 se sessão inválida. */
+export async function getMe(): Promise<Conta> {
+  const res = await fetch(`${apiUrl()}/api/produtor/me`, { headers: authHeaders() });
+  if (!res.ok) await erroApi(res, "GET /api/produtor/me");
   return normalizarConta((await res.json()) as Record<string, unknown>);
 }
 
-/** GET /api/produtor/{id} — conta cheia. */
+/* ---------------- cadastro por chat (onboarding guiado) ---------------- */
+
+export interface OnboardingResposta {
+  proximo_passo: number;
+  pergunta: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  perfil_parcial?: Record<string, any>;
+  erro?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  resumo?: Record<string, any> | null;
+  fonte?: string;
+}
+
+/** POST /api/onboarding — uma etapa do cadastro por chat (extração real no back). */
+export async function onboardingChat(args: {
+  etapa: number;
+  resposta: string;
+  produtor_id?: string | null;
+  telefone?: string | null;
+}): Promise<OnboardingResposta> {
+  const res = await fetch(`${apiUrl()}/api/onboarding`, {
+    method: "POST",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({
+      etapa: args.etapa,
+      resposta: args.resposta,
+      ...(args.produtor_id ? { produtor_id: args.produtor_id } : {}),
+      ...(args.telefone ? { telefone: args.telefone } : {}),
+    }),
+  });
+  if (!res.ok) await erroApi(res, "POST /api/onboarding");
+  return (await res.json()) as OnboardingResposta;
+}
+
+/** GET /api/produtor/{id} — conta cheia (exige sessão). */
 export async function getConta(id: string): Promise<Conta> {
-  const res = await fetch(`${apiUrl()}/api/produtor/${encodeURIComponent(id)}`);
+  const res = await fetch(`${apiUrl()}/api/produtor/${encodeURIComponent(id)}`, {
+    headers: authHeaders(),
+  });
   if (!res.ok) await erroApi(res, "GET /api/produtor/{id}");
   return normalizarConta((await res.json()) as Record<string, unknown>);
 }
 
-/** PATCH /api/produtor/{id} — atualização parcial. */
+/** PATCH /api/produtor/{id} — atualização parcial (exige sessão). */
 export async function patchConta(id: string, patch: ContaPatch): Promise<Conta> {
   const res = await fetch(`${apiUrl()}/api/produtor/${encodeURIComponent(id)}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(patch),
   });
   if (!res.ok) await erroApi(res, "PATCH /api/produtor/{id}");
@@ -176,7 +276,7 @@ export async function getRegiao(
   const q = new URLSearchParams({ uf });
   if (ibge) q.set("ibge", ibge);
   if (cultura) q.set("cultura", cultura);
-  const res = await fetch(`${apiUrl()}/api/regiao?${q.toString()}`);
+  const res = await fetch(`${apiUrl()}/api/regiao?${q.toString()}`, { headers: authHeaders() });
   if (!res.ok) throw new Error(`GET /api/regiao ${res.status}`);
   return res.json();
 }
@@ -283,7 +383,7 @@ export async function getPrecos(
 ): Promise<PrecosResposta> {
   const q = new URLSearchParams({ uf });
   if (cultura) q.set("cultura", cultura);
-  const res = await fetch(`${apiUrl()}/api/precos?${q.toString()}`);
+  const res = await fetch(`${apiUrl()}/api/precos?${q.toString()}`, { headers: authHeaders() });
   if (!res.ok) throw new Error(`GET /api/precos ${res.status}`);
   return res.json();
 }
@@ -341,8 +441,65 @@ export async function getDecisaoDia(
   if (args.uf) q.set("uf", args.uf);
   if (args.ibge) q.set("ibge", args.ibge);
   if (args.cultura) q.set("cultura", args.cultura);
-  const res = await fetch(`${apiUrl()}/api/decisao-dia?${q.toString()}`);
+  const res = await fetch(`${apiUrl()}/api/decisao-dia?${q.toString()}`, { headers: authHeaders() });
   if (!res.ok) throw new Error(`GET /api/decisao-dia ${res.status}`);
+  return res.json();
+}
+
+/* ---------------- radar (3 cartões com dado estruturado) ---------------- */
+
+export interface RadarLinha {
+  rotulo: string;
+  valor: string;
+  aviso?: boolean;
+}
+
+export interface RadarDestaque {
+  rotulo: string;
+  valor: string;
+  dica?: string;
+}
+
+export interface RadarFonte {
+  nome: string;
+  periodo?: string;
+  url?: string;
+  limitacoes?: string[];
+}
+
+export interface RadarBloco {
+  estado: "favoravel" | "atencao" | "pendente" | "sem_dado" | "informativo";
+  titulo: string;
+  detalhe: string;
+  linhas?: RadarLinha[];
+  destaques?: RadarDestaque[];
+  leitura?: string;
+  fonte: RadarFonte;
+}
+
+export interface RadarResposta {
+  clima: RadarBloco;
+  zarc: RadarBloco;
+  psr: RadarBloco;
+  uf: string;
+  ibge: string | null;
+  cultura: string | null;
+  data: string;
+}
+
+/** GET /api/radar?uf=&ibge=&cultura=&solo= — os 3 cartões do Radar, com dado real. */
+export async function getRadar(
+  uf: string,
+  ibge?: string | null,
+  cultura?: string | null,
+  solo?: string | null,
+): Promise<RadarResposta> {
+  const q = new URLSearchParams({ uf });
+  if (ibge) q.set("ibge", ibge);
+  if (cultura) q.set("cultura", cultura);
+  if (solo) q.set("solo", solo);
+  const res = await fetch(`${apiUrl()}/api/radar?${q.toString()}`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`GET /api/radar ${res.status}`);
   return res.json();
 }
 
@@ -355,7 +512,7 @@ export async function getAlertas(
   const q = new URLSearchParams({ uf });
   if (ibge) q.set("ibge", ibge);
   if (cultura) q.set("cultura", cultura);
-  const res = await fetch(`${apiUrl()}/api/alertas?${q.toString()}`);
+  const res = await fetch(`${apiUrl()}/api/alertas?${q.toString()}`, { headers: authHeaders() });
   if (!res.ok) throw new Error(`GET /api/alertas ${res.status}`);
   return res.json();
 }
@@ -385,7 +542,7 @@ export async function postChat(
 ): Promise<ChatResposta> {
   const res = await fetch(`${apiUrl()}/api/chat`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({
       produtor_id,
       mensagem,
@@ -413,7 +570,7 @@ export async function postChatStream(
 ): Promise<void> {
   const res = await fetch(`${apiUrl()}/api/chat/stream`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+    headers: authHeaders({ "Content-Type": "application/json", Accept: "text/event-stream" }),
     body: JSON.stringify({
       produtor_id: args.produtor_id,
       mensagem: args.mensagem,
@@ -490,7 +647,7 @@ export interface Sessao {
 /** GET /api/sessoes?produtor_id= — lista desc (ChatGPT-style). */
 export async function listSessoes(produtor_id: string): Promise<Sessao[]> {
   const q = new URLSearchParams({ produtor_id });
-  const res = await fetch(`${apiUrl()}/api/sessoes?${q.toString()}`);
+  const res = await fetch(`${apiUrl()}/api/sessoes?${q.toString()}`, { headers: authHeaders() });
   if (!res.ok) throw new Error(`GET /api/sessoes ${res.status}`);
   const data = (await res.json()) as unknown;
   if (Array.isArray(data)) return data as Sessao[];
@@ -512,7 +669,7 @@ export async function createSessao(input: {
 }): Promise<Sessao> {
   const res = await fetch(`${apiUrl()}/api/sessoes`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(input),
   });
   if (!res.ok) throw new Error(`POST /api/sessoes ${res.status}`);
@@ -522,7 +679,7 @@ export async function createSessao(input: {
 /** GET /api/sessoes/{id}/mensagens — turnos asc (bruto; mapeado na page). */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function getMensagens(sessao_id: string): Promise<any[]> {
-  const res = await fetch(`${apiUrl()}/api/sessoes/${sessao_id}/mensagens`);
+  const res = await fetch(`${apiUrl()}/api/sessoes/${sessao_id}/mensagens`, { headers: authHeaders() });
   if (!res.ok) throw new Error(`GET /api/sessoes/mensagens ${res.status}`);
   const data = (await res.json()) as unknown;
   if (Array.isArray(data)) return data;

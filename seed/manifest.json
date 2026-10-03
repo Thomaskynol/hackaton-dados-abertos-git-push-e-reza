@@ -1,0 +1,21 @@
+{
+  "gerado_em": "2026-10-03T05:51:30.301479+00:00",
+  "db": "agropilot",
+  "colecoes": {
+    "zarc": 957490,
+    "municipios": 5573,
+    "psr_agregado": 72830,
+    "sigef_agregado": 10084,
+    "agrofit": 16697,
+    "ana_atlas": 5570,
+    "precos_conab": 2860,
+    "precos_meta": 5,
+    "precos_previsao": 9,
+    "geo_municipios": 4,
+    "clima_cache": 4
+  },
+  "total_documentos": 1071126,
+  "tamanho_bytes": 35707449,
+  "sha256": "980e1dcb4159ed9b10a332053cd7b3cb4e946fe3ff12651aa8086da958ce3315",
+  "observacao": "Dump limpo: so dados publicos de referencia. Produtores, sessoes, mensagens e memorias NAO vao no seed."
+}

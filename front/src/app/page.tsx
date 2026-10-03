@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { usePerfil } from "@/lib/perfil-context";
+import { LogoCompleta } from "@/components/Logo";
 
 /** Porta de entrada: Mapa (consultor comercial) se já cadastrou, senão login. */
 export default function Raiz() {
@@ -25,10 +26,9 @@ export default function Raiz() {
   return (
     <main className="grid min-h-screen place-items-center bg-canvas px-6">
       <div className="flex flex-col items-center gap-3 text-muted">
-        <span className="grid h-14 w-14 place-items-center rounded-2xl bg-terra text-2xl text-white">
-          🌱
+        <span className="grid place-items-center overflow-hidden rounded-3xl bg-[#142F24] p-5 shadow-soft">
+          <LogoCompleta width={176} />
         </span>
-        <p className="font-display text-lg font-bold text-ink">AgroPilot</p>
         <p className="text-[0.9rem]">Abrindo seu consultor comercial…</p>
         {/* Saída manual: se o redirecionamento automático falhar, ninguém fica preso aqui. */}
         <a

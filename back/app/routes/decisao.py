@@ -14,6 +14,7 @@ resumo determinístico montado dos próprios dados — nunca inventa, nunca fica
 Nunca raise: cada bloco falha para "sem dado" e a decisão se adapta ao que há.
 """
 import logging
+import re
 from datetime import date
 
 from fastapi import APIRouter, Query
@@ -113,12 +114,43 @@ def _ctx_texto(cultura_label, local_nome, uf, prev, eventos, zarc, preco, mem):
         linhas.append(mem.strip())
 
     linhas.append(
-        "Gere a DECISÃO DO DIA: 2 a 4 frases, linguagem simples de produtor, dizendo o que "
-        "fazer hoje/nos próximos dias com base no que for mais urgente acima (clima manda quando "
-        "há evento). Depois liste de 1 a 3 ações curtas começando com verbo. Nunca invente dado; "
-        "se algo faltar, foque no que há. Cite as fontes no fim."
+        "Escreva APENAS a DECISÃO DO DIA: um único parágrafo de 2 a 4 frases, em linguagem "
+        "simples de produtor, dizendo o que fazer hoje/nos próximos dias com base no que for "
+        "mais urgente acima (o clima manda quando há evento). "
+        "NÃO escreva lista numerada, NÃO use '1.' '2.' '-' nem bullets, e NÃO cite fontes — "
+        "as ações e as fontes são mostradas em outro lugar da tela. "
+        "Nunca invente dado; se algo faltar, foque no que há. Responda só com o parágrafo."
     )
     return "\n".join(linhas)
+
+
+# Linha de ação: "1. ...", "1) ...", "- ...", "• ...", "* ..."
+_RE_ACAO = re.compile(r"^\s*(?:\d+[.)]|[-•*])\s+(.*\S)\s*$")
+# Linha de fonte jogada no texto: "Fonte: ...", "Fontes — ..."
+_RE_FONTE = re.compile(r"^\s*fontes?\s*[:\-–—]", re.IGNORECASE)
+
+
+def _separar_corpo_acoes_fonte(texto: str) -> tuple[str, list[str]]:
+    """Mesmo pedindo só o parágrafo, alguns modelos devolvem lista e 'Fonte:'.
+    Separa o corpo (parágrafo) das ações (linhas de lista) e descarta a linha
+    de fonte do meio do texto (a fonte real vem dos campos estruturados).
+
+    Também remove uma eventual 'Fonte: ...' colada no fim de uma frase.
+    """
+    corpo_linhas: list[str] = []
+    acoes: list[str] = []
+    for linha in (texto or "").splitlines():
+        if _RE_FONTE.match(linha):
+            continue  # descarta linha de fonte
+        m = _RE_ACAO.match(linha)
+        if m:
+            acoes.append(m.group(1).strip())
+            continue
+        corpo_linhas.append(linha)
+    corpo = " ".join(p.strip() for p in corpo_linhas if p.strip())
+    # tira "Fonte: ..." que tenha ficado no fim do parágrafo, sem quebrar linha
+    corpo = re.split(r"\s+Fontes?\s*[:\-–—]\s*", corpo, maxsplit=1, flags=re.IGNORECASE)[0].strip()
+    return corpo, acoes
 
 
 def _acoes_das_evidencias(eventos, zarc, preco):
@@ -207,7 +239,13 @@ def decisao_dia(produtor_id: str | None = None, ibge: str | None = None,
     corpo_fb, fontes = _decisao_heuristica(cultura_label, eventos, zarc, preco, prev)
 
     if texto_ia:
-        resposta, origem = texto_ia, "ia"
+        # mesmo pedindo só o parágrafo, o modelo às vezes manda lista + "Fonte:".
+        # Separamos: corpo limpo p/ resposta; ações da IA só se as nossas faltarem.
+        corpo_ia, acoes_ia = _separar_corpo_acoes_fonte(texto_ia)
+        resposta = corpo_ia or corpo_fb
+        origem = "ia"
+        if not acoes and acoes_ia:
+            acoes = acoes_ia[:3]
     else:
         resposta, origem = corpo_fb, "regras"
 

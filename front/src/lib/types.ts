@@ -34,6 +34,7 @@ export type EstadoEvidencia =
   | "atencao"
   | "pendente"
   | "sem_dado"
+  | "sem_conexao"
   | "informativo";
 
 /** Estado da camada regional: honesto por padrão até o backend ligar. */
@@ -87,6 +88,17 @@ export interface Evidencia {
   destaques?: DestaqueCard[];
   /** "O que isso significa na prática" — uma linha, opcional. */
   leitura?: string;
+  /**
+   * Linhas extras de dado estruturado (ex.: previsão dia a dia do clima, ou
+   * cada decêndio da janela ZARC em data de calendário). Renderizadas como
+   * lista compacta sob a frase. Opcional.
+   */
+  linhas?: Array<{ rotulo: string; valor: string; aviso?: boolean }>;
+  /**
+   * Ação opcional do card (ex.: "Tentar de novo" quando o estado é
+   * `sem_conexao`). O id é tratado pela página que renderiza o card.
+   */
+  acao?: { id: "retry"; rotulo: string };
   fonte: Fonte;
 }
 

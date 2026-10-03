@@ -75,8 +75,8 @@ export function responderLocal(texto: string, primeiroNome: string): Omit<Mensag
       );
     case "PLANEJAMENTO":
       return base(
-        `Boa, ${primeiroNome}. Quando o motor de dados estiver ligado, eu respondo com a janela do ZARC para a sua cultura e solo, decêndio a decêndio, e mostro a fonte. Por enquanto estou em modo navegação.`,
-        "ZARC/MAPA 2026/27",
+        `Boa, ${primeiroNome}. Eu respondo com a janela do ZARC para a sua cultura e solo, decêndio a decêndio, e mostro a fonte. Abra a aba Radar para ver a janela de plantio da sua região.`,
+        "ZARC/MAPA",
         [
           {
             tipo: "zarc",
@@ -115,15 +115,16 @@ export function responderLocal(texto: string, primeiroNome: string): Omit<Mensag
       );
     case "CLIMA":
       return base(
-        `${primeiroNome}, a previsão vem do Open-Meteo por município, com cache. Com o backend ligado, eu te aviso de geada, veranico e chuva forte perto do plantio ou da colheita.`,
+        `${primeiroNome}, a previsão vem do Open-Meteo por município. Abra a aba Radar para ver a previsão dos próximos dias e os avisos de geada, veranico e chuva forte perto do plantio ou da colheita.`,
         "Open-Meteo",
         [
           {
             tipo: "clima",
-            estado: "sem_dado",
+            estado: "pendente",
             titulo: "Previsão do tempo",
-            detalhe: "A camada de clima entra quando o backend estiver conectado.",
-            fonte: { nome: "Open-Meteo", limitacoes: ["Horizonte de previsão de até 7 dias."] },
+            detalhe:
+              "Escolha o seu município no mapa para eu mostrar a previsão dos próximos dias.",
+            fonte: { nome: "Open-Meteo + IBGE", limitacoes: ["Horizonte de previsão de até 7 dias."] },
           },
         ],
       );
@@ -178,35 +179,42 @@ export function alertasDemo(): Alerta[] {
   ];
 }
 
-/** Evidências de demonstração da tela Radar — todas honestas sobre o estado. */
+/**
+ * Evidências de reserva da tela Radar. Usadas só quando falta o cadastro
+ * (cultura/município) — nunca para fingir que "o backend não ligou". O
+ * estado "pendente" aqui significa literalmente: falta uma informação SUA.
+ */
 export function evidenciasDemo(): Evidencia[] {
   return [
     {
       tipo: "zarc",
       estado: "pendente",
       titulo: "Janela de plantio (ZARC)",
-      detalhe: "Conclua seu cadastro de cultura e solo para eu buscar a janela recomendada.",
+      detalhe:
+        "Escolha a sua cultura e o seu município para eu buscar a janela de plantio que o governo recomenda, decêndio a decêndio.",
       fonte: {
-        nome: "MAPA — ZARC Tábua de Risco 2026/2027",
-        periodo: "2026/2027",
-        limitacoes: ["Zoneamento municipal; não considera microclima."],
+        nome: "MAPA — ZARC (Zoneamento Agrícola de Risco Climático)",
+        periodo: "safra vigente",
+        limitacoes: ["Zoneamento municipal; não considera o microclima da sua gleba."],
       },
     },
     {
       tipo: "clima",
-      estado: "sem_dado",
+      estado: "pendente",
       titulo: "Previsão do tempo",
-      detalhe: "A camada de clima entra quando o backend estiver conectado.",
-      fonte: { nome: "Open-Meteo", limitacoes: ["Previsão de até 7 dias."] },
+      detalhe:
+        "Escolha o seu município no mapa para eu mostrar a previsão dos próximos dias (chuva, mínima e máxima).",
+      fonte: { nome: "Open-Meteo + IBGE", periodo: "próximos 7 dias" },
     },
     {
       tipo: "psr",
-      estado: "sem_dado",
-      titulo: "Histórico de sinistro (seguro rural)",
-      detalhe: "Mostra os eventos que mais causaram perda na sua região, com base no PSR.",
+      estado: "pendente",
+      titulo: "Histórico de perdas (seguro rural)",
+      detalhe:
+        "Com a sua cultura e município, eu mostro os eventos que mais causaram perda na sua região, com base no seguro rural.",
       fonte: {
-        nome: "MAPA — SISSER/PSR",
-        periodo: "2016–2024",
+        nome: "MAPA — Seguro Rural (PSR/SISSER)",
+        periodo: "2016–2025",
         limitacoes: ["Dados de apólice, não de produção individual."],
       },
     },

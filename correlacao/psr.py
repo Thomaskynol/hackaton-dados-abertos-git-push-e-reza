@@ -86,15 +86,27 @@ def agregar(entradas):
 
 
 def main(argv):
-    args = [a for a in argv if not a.startswith("--")]
-    entradas = args or ["base de dados/dados_abertos_psr_2025csv.csv"]
     out = "correlacao/output/psr_agregado.jsonl"
     prov = "correlacao/output/provenance/psr.json"
-    for i, a in enumerate(argv):
+    # separa flags (--out/--prov VALOR) dos caminhos de entrada posicionais
+    entradas = []
+    i = 0
+    while i < len(argv):
+        a = argv[i]
         if a == "--out" and i + 1 < len(argv):
             out = argv[i + 1]
+            i += 2
+            continue
         if a == "--prov" and i + 1 < len(argv):
             prov = argv[i + 1]
+            i += 2
+            continue
+        if a.startswith("--"):
+            i += 1
+            continue
+        entradas.append(a)
+        i += 1
+    entradas = entradas or ["base de dados/dados_abertos_psr_2025csv.csv"]
     fonte = "+".join(sorted(os.path.basename(e) for e in entradas))
 
     grupos, linhas, sem_geo = agregar(entradas)

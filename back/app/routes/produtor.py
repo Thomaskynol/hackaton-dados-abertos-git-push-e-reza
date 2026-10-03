@@ -3,12 +3,13 @@ from typing import Any, Optional
 from uuid import uuid4
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel
 
 from ..db import get_db
 from ..mock import MOCK_PRODUTOR
 from ..schemas.produtor import ProdutorCreate
+from .. import auth
 
 log = logging.getLogger(__name__)
 
@@ -18,10 +19,12 @@ router = APIRouter(prefix="/api", tags=["Produtor"])
 class SignupIn(BaseModel):
     telefone: str
     nome: str
+    pin: Optional[str] = None
 
 
 class LoginIn(BaseModel):
     telefone: str
+    pin: Optional[str] = None
 
 
 class ContaPatch(BaseModel):
@@ -69,6 +72,11 @@ def _ensure_indexes(db) -> None:
 def _resp_doc(doc: dict) -> dict:
     out = dict(doc or {})
     out.pop("_id", None)
+    # nunca vaza o segredo do PIN; expõe só se a conta TEM pin
+    tem_pin = bool(out.pop("pin_hash", None)) and bool(out.pop("pin_salt", None))
+    out.pop("pin_hash", None)
+    out.pop("pin_salt", None)
+    out["tem_pin"] = tem_pin
     if "cod_ibge" in out and "codigo_ibge" not in out:
         out["codigo_ibge"] = out.get("cod_ibge")
     return out
@@ -138,12 +146,29 @@ def _db_ou_503():
     return db
 
 
+def _exigir_dono(db, id_alvo: str, authorization: str | None):
+    """Quando AUTH_OBRIGATORIA está ligada, só o dono do token acessa a conta.
+    Com a flag desligada (padrão/legado/testes), não bloqueia — mantém compat."""
+    if not auth.auth_obrigatoria():
+        return
+    tok = auth.token_do_header(authorization)
+    pid = auth.produtor_do_token(db, tok) if tok else None
+    if not pid:
+        raise HTTPException(status_code=401, detail="sessão inválida ou expirada")
+    if pid != id_alvo:
+        raise HTTPException(status_code=403, detail="essa conta não é sua")
+
+
 @router.post("/produtor/signup", status_code=201)
 def signup_conta(body: SignupIn):
     norm = _norm_tel(body.telefone)
     nome = (body.nome or "").strip()
     if len(norm) < 10 or len(nome) < 2:
         raise HTTPException(status_code=422, detail="telefone/nome invalidos")
+    # PIN: obrigatório quando enviado; se vier, precisa ser 4-6 dígitos
+    pin = (body.pin or "").strip() or None
+    if pin is not None and not auth.pin_valido(pin):
+        raise HTTPException(status_code=422, detail="PIN deve ter de 4 a 6 dígitos")
     db = _db_ou_503()
     _ensure_indexes(db)
     if _find_by_telefone(db, norm, body.telefone):
@@ -162,12 +187,21 @@ def signup_conta(body: SignupIn):
         "criado_em": agora,
         "atualizado_em": agora,
     }
+    if pin is not None:
+        salt, h = auth.hash_pin(pin)
+        doc["pin_salt"] = salt
+        doc["pin_hash"] = h
     try:
         db.produtores.insert_one(dict(doc))
     except Exception as e:
         log.warning("insert signup falhou: %r", e)
         raise HTTPException(status_code=409, detail="telefone ja cadastrado")
-    return _conta_resp(doc)
+    resp = _conta_resp(doc)
+    # já devolve um token de sessão: signup entra logado
+    tok = auth.criar_token(db, doc["id"])
+    if tok:
+        resp["token"] = tok
+    return resp
 
 
 @router.post("/produtor/login")
@@ -180,17 +214,59 @@ def login_conta(body: LoginIn):
     doc = _find_by_telefone(db, norm, body.telefone)
     if not doc:
         raise HTTPException(status_code=404, detail="produtor nao encontrado")
+    # Se a conta tem PIN, exige PIN correto. Contas antigas sem PIN entram só
+    # com telefone (compat) — mas são incentivadas a definir um PIN depois.
+    tem_pin = bool(doc.get("pin_hash") and doc.get("pin_salt"))
+    pin = (body.pin or "").strip() or None
+    if tem_pin:
+        if not pin:
+            raise HTTPException(status_code=422, detail="informe o PIN")
+        if not auth.verificar_pin(pin, doc.get("pin_salt"), doc.get("pin_hash")):
+            raise HTTPException(status_code=401, detail="PIN incorreto")
+    resp = _conta_resp(doc)
+    resp["tem_pin"] = tem_pin
+    tok = auth.criar_token(db, doc.get("id"))
+    if tok:
+        resp["token"] = tok
+    return resp
+
+
+@router.get("/produtor/me")
+def produtor_me(authorization: str | None = Header(default=None)):
+    """Conta do dono do token (Authorization: Bearer). 401 se token inválido."""
+    db = _db_ou_503()
+    tok = auth.token_do_header(authorization)
+    pid = auth.produtor_do_token(db, tok) if tok else None
+    if not pid:
+        raise HTTPException(status_code=401, detail="sessão inválida ou expirada")
+    doc = db.produtores.find_one({"id": pid})
+    if not doc:
+        raise HTTPException(status_code=404, detail="produtor nao encontrado")
     return _conta_resp(doc)
 
 
+@router.post("/produtor/logout")
+def produtor_logout(authorization: str | None = Header(default=None)):
+    """Revoga a sessão atual (apaga o token no servidor). Idempotente."""
+    try:
+        db = get_db()
+    except Exception:
+        db = None
+    tok = auth.token_do_header(authorization)
+    if db is not None and tok:
+        auth.revogar_token(db, tok)
+    return {"ok": True}
+
+
 @router.get("/produtor/{id}")
-def obter_produtor(id: str):
+def obter_produtor(id: str, authorization: str | None = Header(default=None)):
     try:
         db = get_db()
     except Exception as e:
         log.warning("get_db falhou em GET produtor: %r", e)
         db = None
     if db is not None:
+        _exigir_dono(db, id, authorization)
         try:
             _ensure_indexes(db)
             doc = db.produtores.find_one({"id": id})
@@ -208,8 +284,10 @@ def obter_produtor(id: str):
 
 
 @router.patch("/produtor/{id}")
-def atualizar_conta(id: str, body: ContaPatch):
+def atualizar_conta(id: str, body: ContaPatch,
+                    authorization: str | None = Header(default=None)):
     db = _db_ou_503()
+    _exigir_dono(db, id, authorization)
     _ensure_indexes(db)
     try:
         atual = db.produtores.find_one({"id": id})

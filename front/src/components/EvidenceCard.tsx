@@ -10,6 +10,8 @@ import {
   FileText,
   Lightbulb,
   Info,
+  WifiOff,
+  RotateCw,
 } from "lucide-react";
 import type { Evidencia, EstadoEvidencia } from "@/lib/types";
 
@@ -57,8 +59,16 @@ const META: Record<
     faixa: "bg-pendente",
     chip: "bg-pendente/12",
     Icone: MinusCircle,
-    rotulo: "Sem dado ainda",
-    oQueSignifica: "a base oficial ainda não ligou",
+    rotulo: "Sem registro na base",
+    oQueSignifica: "consultamos a fonte oficial e ela não tem esse dado para você",
+  },
+  sem_conexao: {
+    cor: "text-atencao",
+    faixa: "bg-atencao",
+    chip: "bg-atencao/20",
+    Icone: WifiOff,
+    rotulo: "Sem conexão agora",
+    oQueSignifica: "não deu para falar com o servidor — o dado existe, só não carregou",
   },
   informativo: {
     cor: "text-sky-700",
@@ -70,11 +80,18 @@ const META: Record<
   },
 };
 
-export function EvidenceCard({ evidencia }: { evidencia: Evidencia }) {
+export function EvidenceCard({
+  evidencia,
+  onAcao,
+}: {
+  evidencia: Evidencia;
+  /** Chamado quando o produtor toca na ação do card (ex.: "Tentar de novo"). */
+  onAcao?: (id: "retry") => void;
+}) {
   const [aberto, setAberto] = useState(false);
   const m = META[evidencia.estado];
   const { Icone } = m;
-  const { fonte, destaques, leitura } = evidencia;
+  const { fonte, destaques, leitura, linhas, acao } = evidencia;
 
   return (
     <article className="relative overflow-hidden rounded-xl2 border border-line bg-surface shadow-soft card-hover transition-all">
@@ -120,6 +137,25 @@ export function EvidenceCard({ evidencia }: { evidencia: Evidencia }) {
           </dl>
         ) : null}
 
+        {/* linhas de dado estruturado (ex.: previsão dia a dia, decêndios) */}
+        {linhas && linhas.length > 0 ? (
+          <ul className="mt-3 divide-y divide-line overflow-hidden rounded-xl border border-line bg-canvas">
+            {linhas.map((l, i) => (
+              <li
+                key={`${l.rotulo}-${i}`}
+                className="flex items-center justify-between gap-3 px-3 py-1.5 text-[0.86rem]"
+              >
+                <span className="text-muted">{l.rotulo}</span>
+                <span
+                  className={`font-semibold tabular-nums ${l.aviso ? "text-atencao" : "text-ink"}`}
+                >
+                  {l.valor}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
         {/* "o que isso significa" — uma linha, com ícone */}
         {leitura ? (
           <p className="mt-3 flex gap-2 rounded-xl bg-terra-soft/60 px-3 py-2 text-[0.88rem] leading-snug text-terra-ink">
@@ -128,10 +164,21 @@ export function EvidenceCard({ evidencia }: { evidencia: Evidencia }) {
           </p>
         ) : null}
 
+        {/* ação opcional (ex.: Tentar de novo em sem_conexao) */}
+        {acao && onAcao ? (
+          <button
+            onClick={() => onAcao(acao.id)}
+            className="mt-3 inline-flex min-h-[40px] items-center gap-1.5 rounded-full bg-atencao/15 px-4 text-[0.85rem] font-bold text-atencao transition hover:bg-atencao/25"
+          >
+            <RotateCw size={15} aria-hidden />
+            {acao.rotulo}
+          </button>
+        ) : null}
+
         <button
           onClick={() => setAberto((v) => !v)}
           aria-expanded={aberto}
-          className="mt-3 inline-flex min-h-[40px] items-center gap-1.5 rounded-full bg-canvas px-3 text-[0.85rem] font-semibold text-muted transition hover:text-ink"
+          className="mt-3 ml-2 inline-flex min-h-[40px] items-center gap-1.5 rounded-full bg-canvas px-3 text-[0.85rem] font-semibold text-muted transition hover:text-ink"
         >
           <FileText size={15} aria-hidden />
           Ver fonte

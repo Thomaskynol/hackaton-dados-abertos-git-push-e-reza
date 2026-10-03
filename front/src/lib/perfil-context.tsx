@@ -15,7 +15,7 @@ import {
   type ReactNode,
 } from "react";
 import type { Perfil } from "./types";
-import type { Conta } from "./api";
+import { type Conta, setToken, logout as apiLogout } from "./api";
 
 const CHAVE = "agropilot:perfil";
 
@@ -37,6 +37,8 @@ interface PerfilCtx {
   atualizar: (patch: Partial<Perfil>) => void;
   aplicarConta: (conta: Conta, telefoneDigitado?: string) => void;
   reset: () => void;
+  /** Logout: limpa a sessão do aparelho. O redirect p/ /login fica no componente. */
+  sair: () => void;
 }
 
 const Ctx = createContext<PerfilCtx | null>(null);
@@ -88,9 +90,22 @@ export function PerfilProvider({ children }: { children: ReactNode }) {
       perfil,
       carregado,
       atualizar: (patch) => persistir({ ...perfil, ...patch }),
-      aplicarConta: (conta, tel) =>
-        persistir(contaParaPerfil(conta, tel ?? perfil.telefone)),
+      aplicarConta: (conta, tel) => {
+        // signup/login devolvem token junto da conta: guarda a sessão
+        if (conta.token) setToken(conta.token);
+        persistir(contaParaPerfil(conta, tel ?? perfil.telefone));
+      },
       reset: () => persistir(PERFIL_VAZIO),
+      sair: () => {
+        // revoga a sessão no servidor + limpa token e cache local do aparelho
+        void apiLogout();
+        try {
+          localStorage.removeItem(CHAVE);
+        } catch {
+          /* storage indisponível: segue limpando em memória */
+        }
+        setPerfil(PERFIL_VAZIO);
+      },
     }),
     [perfil, carregado],
   );

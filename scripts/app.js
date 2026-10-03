@@ -517,7 +517,7 @@ document.addEventListener("DOMContentLoaded", () => {
 function handleLogout() {
   localStorage.removeItem("agropilot_session");
   localStorage.removeItem("agropilot_profile");
-  // Redireciona para tela de login
-  window.location.href = "hackathon/login/login.html";
+  // Tela de login agora vive no app Next.js (front/), rota /login.
+  window.location.href = "/login";
 }
 window.handleLogout = handleLogout;
