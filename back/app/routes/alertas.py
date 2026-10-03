@@ -180,10 +180,57 @@ def _alerta_risco(db, ibge, cultura, uf):
     }
 
 
+def _alertas_clima(db, ibge, cultura, uf):
+    """Alertas climáticos REAIS (previsão Open-Meteo): geada, onda de calor,
+    chuva forte, veranico, chuva recente. Lista (pode ter vários). Nunca raise."""
+    try:
+        from ..clima import buscar_previsao, detectar_eventos
+        from ..precos_dados import rotulo_cultura, canon_cultura
+    except Exception:
+        return []
+    try:
+        prev = buscar_previsao(db, ibge=ibge, uf=uf)
+    except Exception as e:
+        log.warning("clima previsao falhou: %r", e)
+        prev = None
+    if not prev:
+        return []
+    cult_label = rotulo_cultura(canon_cultura(cultura)) if cultura else None
+    try:
+        eventos = detectar_eventos(prev, cult_label)
+    except Exception as e:
+        log.warning("detectar_eventos falhou: %r", e)
+        return []
+    local = prev.get("local") or {}
+    saida = []
+    for ev in eventos:
+        saida.append({
+            "id": f"clima-{ev['tipo']}-{ibge or uf}",
+            "tipo": ev["tipo"],
+            "severidade": ev.get("severidade", "media"),
+            "titulo": ev.get("titulo"),
+            "mensagem": ev["mensagem"],
+            "fonte": ev.get("fonte", "Open-Meteo + IBGE"),
+            "local": local.get("nome"),
+            "data_extracao": "previsão dos próximos dias",
+            "enviado_em": datetime.now(timezone.utc).isoformat(),
+            "lido": False,
+        })
+    return saida
+
+
+# Ordem de severidade para ranquear os alertas (mais grave primeiro).
+_PESO_SEV = {"alta": 0, "media": 1, "baixa": 2}
+
+
 @router.get("/alertas")
 def listar_alertas(ibge: str | None = None, cultura: str | None = None,
                    uf: str = Query("SP")):
-    """Alertas reais calculados do ZARC + PSR. Lista vazia honesta se sem dado."""
+    """Alertas reais: clima (Open-Meteo) + janela ZARC + risco PSR.
+
+    Clima é a camada de PREVISÃO (o que vem aí); ZARC/PSR são contexto. Lista
+    vazia honesta se não houver nada relevante. Nunca inventa.
+    """
     uf = (uf or "SP").strip().upper()
     ibge = "".join(ch for ch in str(ibge or "") if ch.isdigit()) or None
     cultura = (cultura or "").strip().lower() or None
@@ -194,6 +241,11 @@ def listar_alertas(ibge: str | None = None, cultura: str | None = None,
         db = None
 
     alertas = []
+    # clima pode gerar vários; ZARC/PSR geram um cada
+    try:
+        alertas.extend(_alertas_clima(db, ibge, cultura, uf))
+    except Exception as e:
+        log.warning("alertas clima falhou: %r", e)
     for fn in (_alerta_janela, _alerta_risco):
         try:
             a = fn(db, ibge, cultura, uf)
@@ -201,6 +253,9 @@ def listar_alertas(ibge: str | None = None, cultura: str | None = None,
                 alertas.append(a)
         except Exception as e:
             log.warning("alerta %s falhou: %r", getattr(fn, "__name__", "?"), e)
+
+    # mais graves primeiro
+    alertas.sort(key=lambda a: _PESO_SEV.get(a.get("severidade"), 1))
 
     return {
         "alertas": alertas,

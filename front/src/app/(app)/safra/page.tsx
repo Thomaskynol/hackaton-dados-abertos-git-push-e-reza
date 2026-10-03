@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MessageCircle, Bell, ChevronRight, Sprout, CloudSun } from "lucide-react";
+import { MessageCircle, Bell, ChevronRight, Sprout, CloudSun, Sparkles, Loader2 } from "lucide-react";
 import { precisaOnboarding, usePerfil, primeiroNome } from "@/lib/perfil-context";
 import { CULTURAS } from "@/lib/dados-locais";
-import { getAlertas, type AlertaReal } from "@/lib/api";
+import { getAlertas, getDecisaoDia, type AlertaReal, type DecisaoDia } from "@/lib/api";
 
 /** Minha Safra (início): o produtor vê o essencial do dia em um relance. */
 export default function Safra() {
@@ -14,6 +14,8 @@ export default function Safra() {
   const { perfil, carregado } = usePerfil();
   const [alertas, setAlertas] = useState<AlertaReal[]>([]);
   const [carregandoAlertas, setCarregandoAlertas] = useState(true);
+  const [decisao, setDecisao] = useState<DecisaoDia | null>(null);
+  const [carregandoDecisao, setCarregandoDecisao] = useState(true);
 
   useEffect(() => {
     if (precisaOnboarding(perfil, carregado)) router.replace("/onboarding");
@@ -23,20 +25,25 @@ export default function Safra() {
     if (!carregado) return;
     let vivo = true;
     const cultura = perfil.lavouras[0]?.cultura ?? null;
+
     getAlertas(perfil.uf || "SP", perfil.cod_ibge || null, cultura)
-      .then((r) => {
-        if (vivo) setAlertas(r.alertas ?? []);
-      })
-      .catch(() => {
-        if (vivo) setAlertas([]);
-      })
-      .finally(() => {
-        if (vivo) setCarregandoAlertas(false);
-      });
-    return () => {
-      vivo = false;
-    };
-  }, [carregado, perfil.uf, perfil.cod_ibge, perfil.lavouras]);
+      .then((r) => { if (vivo) setAlertas(r.alertas ?? []); })
+      .catch(() => { if (vivo) setAlertas([]); })
+      .finally(() => { if (vivo) setCarregandoAlertas(false); });
+
+    setCarregandoDecisao(true);
+    getDecisaoDia({
+      produtor_id: perfil.id,
+      uf: perfil.uf || "SP",
+      ibge: perfil.cod_ibge || null,
+      cultura,
+    })
+      .then((d) => { if (vivo) setDecisao(d); })
+      .catch(() => { if (vivo) setDecisao(null); })
+      .finally(() => { if (vivo) setCarregandoDecisao(false); });
+
+    return () => { vivo = false; };
+  }, [carregado, perfil.id, perfil.uf, perfil.cod_ibge, perfil.lavouras]);
 
   if (!carregado) return null;
 
@@ -84,15 +91,59 @@ export default function Safra() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Coluna 1: Decisão do Dia & Próximo Passo */}
         <div className="lg:col-span-7 space-y-5">
-          {/* Decisão do dia */}
+          {/* Decisão do dia — real, por IA (clima + ZARC + preço + memória) */}
           <section className="relative overflow-hidden rounded-xl2 border border-line bg-surface p-5 sm:p-6 shadow-card card-hover">
-            <span className="absolute left-0 top-0 h-full w-1.5 bg-gradient-to-b from-amber-400 to-amber-600" aria-hidden />
+            <span
+              className={`absolute left-0 top-0 h-full w-1.5 bg-gradient-to-b ${
+                decisao?.severidade === "alta" ? "from-red-400 to-red-600"
+                : decisao?.severidade === "media" ? "from-amber-400 to-amber-600"
+                : "from-terra to-terra-ink"
+              }`}
+              aria-hidden
+            />
             <div className="flex items-center justify-between gap-3">
               <span className="inline-flex items-center gap-2 rounded-full bg-amber-50 border border-amber-200 px-3.5 py-1 text-[0.78rem] font-extrabold uppercase tracking-wide text-amber-800">
                 <CloudSun size={17} /> Decisão do dia
               </span>
+              {decisao?.origem === "ia" && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-terra px-2 py-0.5 text-[0.68rem] font-bold text-white">
+                  <Sparkles size={11} aria-hidden /> por IA
+                </span>
+              )}
             </div>
-            <p className="mt-3.5 text-[1.05rem] leading-relaxed text-ink font-medium">{resumoDia}</p>
+
+            {carregandoDecisao ? (
+              <p className="mt-3.5 flex items-center gap-2 text-[0.95rem] text-muted">
+                <Loader2 size={16} className="animate-spin" aria-hidden /> Lendo o clima e os dados da sua safra…
+              </p>
+            ) : decisao ? (
+              <>
+                <p className="mt-3.5 text-[1.05rem] leading-relaxed text-ink font-medium">{decisao.resposta}</p>
+
+                {decisao.acoes.length > 0 && (
+                  <ul className="mt-3.5 space-y-1.5">
+                    {decisao.acoes.map((a, i) => (
+                      <li key={i} className="flex items-start gap-2 text-[0.92rem] text-ink">
+                        <span className="mt-1 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-terra-soft text-[0.6rem] font-bold text-terra-ink">
+                          {i + 1}
+                        </span>
+                        <span>{a}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {decisao.fontes.length > 0 && (
+                  <p className="mt-3 text-[0.72rem] text-muted">
+                    Fontes: {decisao.fontes.join(" · ")}
+                    {decisao.local?.nome ? ` · ${decisao.local.nome}/${decisao.local.uf}` : ""}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="mt-3.5 text-[1.05rem] leading-relaxed text-ink font-medium">{resumoDia}</p>
+            )}
+
             <Link
               href="/assistente"
               className="mt-5 inline-flex min-h-[50px] w-full items-center justify-center gap-2 rounded-xl2 bg-terra px-5 font-bold text-white shadow-soft transition hover:brightness-105 active:scale-[0.99]"
@@ -162,11 +213,12 @@ export default function Safra() {
                         ? "from-amber-400 to-amber-600"
                         : "from-emerald-400 to-emerald-600";
                   const titulo =
-                    a.tipo === "janela_zarc"
+                    a.titulo // clima traz título próprio (ex: "Risco de geada")
+                    ?? (a.tipo === "janela_zarc"
                       ? "Época de plantio"
                       : a.tipo === "risco_historico"
                         ? "Fique de olho"
-                        : "Aviso";
+                        : "Aviso");
                   return (
                     <article
                       key={a.id}
