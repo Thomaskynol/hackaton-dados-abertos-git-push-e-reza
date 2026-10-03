@@ -70,11 +70,20 @@ def test_post_produtor():
 
 
 def test_get_alertas():
-    res = client.get("/api/alertas/abc123")
+    # endpoint real: alertas calculados do ZARC/PSR; estrutura sempre presente,
+    # lista pode vir vazia honestamente quando não há aviso para o filtro.
+    res = client.get("/api/alertas?uf=SP&ibge=3503208&cultura=feijao")
     assert res.status_code == 200
     data = res.json()
-    assert "alertas" in data
-    assert len(data["alertas"]) > 0
+    assert "alertas" in data and isinstance(data["alertas"], list)
+    assert "vazio_ok" in data
+
+
+def test_get_alertas_legado_vazio():
+    # rota antiga por id (compat): responde 200 com lista (sem produtor real -> vazia).
+    res = client.get("/api/alertas/abc123")
+    assert res.status_code == 200
+    assert "alertas" in res.json()
 
 
 def test_simular_alerta():

@@ -1,27 +1,48 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MessageCircle, Bell, ChevronRight, Sprout, CloudSun } from "lucide-react";
 import { precisaOnboarding, usePerfil, primeiroNome } from "@/lib/perfil-context";
-import { CULTURAS, alertasDemo } from "@/lib/dados-locais";
+import { CULTURAS } from "@/lib/dados-locais";
+import { getAlertas, type AlertaReal } from "@/lib/api";
 
 /** Minha Safra (início): o produtor vê o essencial do dia em um relance. */
 export default function Safra() {
   const router = useRouter();
   const { perfil, carregado } = usePerfil();
+  const [alertas, setAlertas] = useState<AlertaReal[]>([]);
+  const [carregandoAlertas, setCarregandoAlertas] = useState(true);
 
   useEffect(() => {
     if (precisaOnboarding(perfil, carregado)) router.replace("/onboarding");
   }, [perfil, carregado, router]);
+
+  useEffect(() => {
+    if (!carregado) return;
+    let vivo = true;
+    const cultura = perfil.lavouras[0]?.cultura ?? null;
+    getAlertas(perfil.uf || "SP", perfil.cod_ibge || null, cultura)
+      .then((r) => {
+        if (vivo) setAlertas(r.alertas ?? []);
+      })
+      .catch(() => {
+        if (vivo) setAlertas([]);
+      })
+      .finally(() => {
+        if (vivo) setCarregandoAlertas(false);
+      });
+    return () => {
+      vivo = false;
+    };
+  }, [carregado, perfil.uf, perfil.cod_ibge, perfil.lavouras]);
 
   if (!carregado) return null;
 
   const pn = primeiroNome(perfil.nome);
   const lav = perfil.lavouras[0];
   const cultura = CULTURAS.find((c) => c.id === lav?.cultura);
-  const alertas = alertasDemo();
 
   const saudacao = saudar();
   const resumoDia =
@@ -110,29 +131,65 @@ export default function Safra() {
               <h2 className="flex items-center gap-1.5 text-[0.8rem] font-bold uppercase tracking-wide text-muted">
                 <Bell size={15} /> Avisos & Monitoramento
               </h2>
-              <span className="text-xs font-semibold text-terra-ink">
-                {alertas.length} ativos
-              </span>
+              {!carregandoAlertas && (
+                <span className="text-xs font-semibold text-terra-ink">
+                  {alertas.length === 0
+                    ? "tudo tranquilo"
+                    : `${alertas.length} ${alertas.length === 1 ? "aviso" : "avisos"}`}
+                </span>
+              )}
             </div>
-            <div className="space-y-3">
-              {alertas.map((a) => (
-                <article
-                  key={a.id}
-                  className="rounded-xl2 border border-line bg-surface p-4 shadow-soft card-hover"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="font-bold text-ink text-[0.98rem]">{a.titulo}</h3>
-                    <span className="shrink-0 rounded-full bg-canvas border border-line px-2 py-0.5 text-[0.7rem] font-semibold text-muted">
-                      exemplo
-                    </span>
-                  </div>
-                  <p className="mt-1.5 text-[0.9rem] leading-relaxed text-muted">{a.mensagem}</p>
-                  <div className="mt-3 flex items-center justify-between pt-2 border-t border-line/60">
-                    <span className="text-[0.78rem] text-muted">Fonte: <strong>{a.fonte}</strong></span>
-                  </div>
-                </article>
-              ))}
-            </div>
+
+            {carregandoAlertas ? (
+              <div className="rounded-xl2 border border-line bg-surface p-4 text-[0.9rem] text-muted shadow-soft">
+                Vendo se há algo pedindo sua atenção…
+              </div>
+            ) : alertas.length === 0 ? (
+              <div className="rounded-xl2 border border-emerald-200 bg-emerald-50/60 p-4 shadow-soft">
+                <p className="font-bold text-emerald-900">Nada urgente por agora.</p>
+                <p className="mt-1 text-[0.9rem] leading-relaxed text-emerald-800">
+                  Não há janela de plantio fechando nem risco em destaque para a sua cultura.
+                  Assim que algo mudar, aviso você aqui.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {alertas.map((a) => {
+                  const cor =
+                    a.severidade === "alta"
+                      ? "from-red-400 to-red-600"
+                      : a.severidade === "media"
+                        ? "from-amber-400 to-amber-600"
+                        : "from-emerald-400 to-emerald-600";
+                  const titulo =
+                    a.tipo === "janela_zarc"
+                      ? "Época de plantio"
+                      : a.tipo === "risco_historico"
+                        ? "Fique de olho"
+                        : "Aviso";
+                  return (
+                    <article
+                      key={a.id}
+                      className="relative overflow-hidden rounded-xl2 border border-line bg-surface p-4 shadow-soft card-hover"
+                    >
+                      <span className={`absolute left-0 top-0 h-full w-1.5 bg-gradient-to-b ${cor}`} aria-hidden />
+                      <div className="flex items-start justify-between gap-3">
+                        <h3 className="font-bold text-ink text-[0.98rem]">{titulo}</h3>
+                        {a.severidade === "alta" && (
+                          <span className="shrink-0 rounded-full bg-red-50 border border-red-200 px-2 py-0.5 text-[0.7rem] font-bold text-red-700">
+                            atenção
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1.5 text-[0.9rem] leading-relaxed text-muted">{a.mensagem}</p>
+                      <div className="mt-3 flex items-center justify-between pt-2 border-t border-line/60">
+                        <span className="text-[0.78rem] text-muted">Fonte: <strong>{a.fonte}</strong></span>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
           </section>
         </div>
       </div>
